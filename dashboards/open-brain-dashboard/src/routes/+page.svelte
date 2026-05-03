@@ -75,25 +75,7 @@
 			);
 
 			latestResultKey = sortedFetchedThoughts.length ? thoughtKey(sortedFetchedThoughts[0]) : null;
-
-			const seen = new Set<string>();
-			const merged: Thought[] = [];
-
-			for (const t of sortedFetchedThoughts) {
-				const key = thoughtKey(t);
-				if (seen.has(key)) continue;
-				seen.add(key);
-				merged.push(t);
-			}
-
-			for (const t of thoughts) {
-				const key = thoughtKey(t);
-				if (seen.has(key)) continue;
-				seen.add(key);
-				merged.push(t);
-			}
-
-			thoughts = merged;
+			thoughts = sortedFetchedThoughts;
 			hasSearched = true;
 			extractFilters();
 		} catch (err) {
