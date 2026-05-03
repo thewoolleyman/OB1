@@ -55,9 +55,24 @@
 
 	onMount(async () => {
 		searchInput?.focus();
-		await loadStats();
+		await Promise.all([loadStats(), loadRecentThoughts()]);
 		loading = false;
 	});
+
+	async function loadRecentThoughts() {
+		try {
+			const fetchedThoughts = await getThoughts({ limit: 50 });
+			const sortedFetchedThoughts = fetchedThoughts.sort(
+				(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+			);
+			thoughts = sortedFetchedThoughts;
+			latestResultKey = sortedFetchedThoughts.length ? thoughtKey(sortedFetchedThoughts[0]) : null;
+			hasSearched = true;
+			extractFilters();
+		} catch (err) {
+			console.error('Failed to load recent thoughts:', err);
+		}
+	}
 
 	async function loadThoughts() {
 		const query = searchQuery.trim();
@@ -215,7 +230,11 @@
 			captureContent = '';
 			showCapture = false;
 			await loadStats();
-			if (hasSearched) await loadThoughts();
+			if (searchQuery.trim()) {
+				await loadThoughts();
+			} else {
+				await loadRecentThoughts();
+			}
 		} catch (err) {
 			console.error('Failed to capture:', err);
 		}
