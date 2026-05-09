@@ -29,7 +29,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="ob1-graphite-bg min-h-screen flex bg-bg-primary text-text-primary">
+      <body className="min-h-screen flex bg-bg-primary text-text-primary">
         <div className="ob1-brand-signature hidden md:block" aria-hidden="true">
           Nate B. Jones / OB1
         </div>
