@@ -10,6 +10,7 @@ import { requireSessionOrRedirect, getSession } from "@/lib/auth";
 import { TypeBadge } from "@/components/ThoughtCard";
 import { ThoughtEditor } from "@/components/ThoughtEditor";
 import { ThoughtDeleteButton } from "@/components/ThoughtDeleteButton";
+import { SourceLink } from "@/components/SourceLink";
 import { ReflectionComposer } from "@/components/ReflectionComposer";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { FormattedDate } from "@/components/FormattedDate";
@@ -117,7 +118,10 @@ export default async function ThoughtDetailPage({
               ` | Sensitivity: ${thought.sensitivity_tier}`}
           </p>
         </div>
-        <ThoughtDeleteButton deleteAction={deleteAction} />
+        <div className="flex items-start gap-3">
+          <SourceLink metadata={thought.metadata} compact={false} />
+          <ThoughtDeleteButton deleteAction={deleteAction} />
+        </div>
       </div>
 
       {/* Content + Edit */}

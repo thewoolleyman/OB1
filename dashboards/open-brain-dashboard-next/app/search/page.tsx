@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { SearchBar } from "@/components/SearchBar";
 import { TypeBadge } from "@/components/ThoughtCard";
+import { SourceLink } from "@/components/SourceLink";
 import Link from "next/link";
 import type { Thought } from "@/lib/types";
 import { formatDate } from "@/lib/format";
@@ -121,6 +122,9 @@ export default function SearchPage() {
                     ? r.content.slice(0, 300) + "..."
                     : r.content}
                 </p>
+                <div className="mt-2 flex justify-end">
+                  <SourceLink metadata={r.metadata} />
+                </div>
               </Link>
             ))}
             {state.results.length === 0 && (

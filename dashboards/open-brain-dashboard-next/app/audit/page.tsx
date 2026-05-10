@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { TypeBadge } from "@/components/ThoughtCard";
+import { SourceLink } from "@/components/SourceLink";
 import { DeleteModal } from "@/components/DeleteModal";
 import type { Thought, BrowseResponse } from "@/lib/types";
 
@@ -123,6 +124,7 @@ export default function AuditPage() {
                 <th className="text-left px-4 py-3 font-medium">Content</th>
                 <th className="text-left px-4 py-3 font-medium w-24">Type</th>
                 <th className="text-left px-4 py-3 font-medium w-20">Score</th>
+                <th className="text-left px-4 py-3 font-medium w-32">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -151,6 +153,9 @@ export default function AuditPage() {
                   </td>
                   <td className="px-4 py-3 text-warning font-mono text-xs">
                     {t.quality_score}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <SourceLink metadata={t.metadata} />
                   </td>
                 </tr>
               ))}

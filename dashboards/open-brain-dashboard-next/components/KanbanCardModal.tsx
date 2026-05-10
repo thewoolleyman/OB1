@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { Thought, KanbanStatus } from "@/lib/types";
 import { KANBAN_STATUSES, KANBAN_LABELS, PRIORITY_LEVELS, getPriorityLevel, THOUGHT_TYPES, KANBAN_TYPES } from "@/lib/types";
+import { SourceLink } from "@/components/SourceLink";
 
 interface KanbanCardModalProps {
   thought: Thought;
@@ -234,6 +235,7 @@ export function KanbanCardModal({
               <span>Topics: {topics.join(", ")}</span>
             )}
             <span>ID: {thought.id}</span>
+            <SourceLink metadata={thought.metadata} />
           </div>
         </div>
 
