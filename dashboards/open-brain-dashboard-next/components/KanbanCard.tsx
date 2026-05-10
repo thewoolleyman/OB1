@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Thought } from "@/lib/types";
 import { TypeBadge } from "@/components/ThoughtCard";
 import { PriorityDot } from "@/components/PriorityDot";
+import { SourceLink } from "@/components/SourceLink";
 
 function formatAge(dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime();
@@ -89,6 +90,7 @@ export function KanbanCard({
           ))}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <SourceLink metadata={thought.metadata} />
           <span className="text-[10px] text-text-muted">
             {formatAge(thought.created_at)}
           </span>

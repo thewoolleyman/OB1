@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Thought } from "@/lib/types";
 import { FormattedDate } from "@/components/FormattedDate";
+import { SourceLink } from "@/components/SourceLink";
 
 const typeColors: Record<string, string> = {
   idea: "bg-amber-500/15 text-amber-400 border-amber-500/20",
@@ -50,11 +51,14 @@ export function ThoughtCard({
         <FormattedDate date={thought.created_at} className="text-xs text-text-muted whitespace-nowrap" />
       </div>
       <p className="text-sm text-text-secondary leading-relaxed">{preview}</p>
-      {thought.source_type && (
-        <span className="inline-block mt-2 text-xs text-text-muted">
-          {thought.source_type}
-        </span>
-      )}
+      <div className="flex items-center justify-between gap-3 mt-2">
+        {thought.source_type && (
+          <span className="inline-block text-xs text-text-muted">
+            {thought.source_type}
+          </span>
+        )}
+        <SourceLink metadata={thought.metadata} />
+      </div>
     </div>
   );
 

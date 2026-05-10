@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchThoughts } from "@/lib/api";
 import { requireSessionOrRedirect, getSession } from "@/lib/auth";
 import { TypeBadge } from "@/components/ThoughtCard";
+import { SourceLink } from "@/components/SourceLink";
 import { ThoughtsFilter } from "@/components/ThoughtsFilter";
 import { FormattedDate } from "@/components/FormattedDate";
 
@@ -93,6 +94,7 @@ export default async function ThoughtsPage({
               <th className="text-left px-4 py-3 font-medium w-24">Type</th>
               <th className="text-left px-4 py-3 font-medium w-20">Imp.</th>
               <th className="text-left px-4 py-3 font-medium w-40">Date</th>
+              <th className="text-left px-4 py-3 font-medium w-32">Source</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
@@ -117,6 +119,9 @@ export default async function ThoughtsPage({
                 <td className="px-4 py-3 text-text-muted">{t.importance}</td>
                 <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">
                   <FormattedDate date={t.created_at} />
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <SourceLink metadata={t.metadata} />
                 </td>
               </tr>
             ))}
