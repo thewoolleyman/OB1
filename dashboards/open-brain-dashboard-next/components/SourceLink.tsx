@@ -1,3 +1,5 @@
+"use client";
+
 import { getSourceUrl } from "@/lib/source-url";
 
 // SourceLink — renders a small "open the original" anchor when the
