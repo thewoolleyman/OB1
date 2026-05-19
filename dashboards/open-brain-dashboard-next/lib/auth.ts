@@ -34,7 +34,7 @@ if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
 export const sessionOptions: SessionOptions = {
   cookieName: "open_brain_session",
   password: SESSION_SECRET,
-  ttl: 60 * 60 * 24, // 24 hours
+  ttl: 60 * 60 * 24 * 30, // 30 days
   cookieOptions: {
     httpOnly: true,
     secure: shouldUseSecureCookie(),
