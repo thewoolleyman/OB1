@@ -15,7 +15,6 @@ interface SearchState {
   total: number;
   page: number;
   totalPages: number;
-  mode: "semantic" | "text";
 }
 
 export default function SearchPage() {
@@ -23,17 +22,15 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState("");
-  const [lastMode, setLastMode] = useState<"semantic" | "text">("semantic");
 
   const doSearch = useCallback(
-    async (query: string, mode: "semantic" | "text", page: number = 1) => {
+    async (query: string, page: number = 1) => {
       setLoading(true);
       setError(null);
       setLastQuery(query);
-      setLastMode(mode);
       try {
         const res = await fetch(
-          `/api/search?q=${encodeURIComponent(query)}&mode=${mode}&page=${page}`
+          `/api/search?q=${encodeURIComponent(query)}&page=${page}`
         );
         if (!res.ok) throw new Error("Search failed");
         const data = await res.json();
@@ -42,7 +39,6 @@ export default function SearchPage() {
           total: data.total || 0,
           page: data.page || 1,
           totalPages: data.total_pages || 1,
-          mode,
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Search failed");
@@ -55,17 +51,17 @@ export default function SearchPage() {
   );
 
   const handleSearch = useCallback(
-    (query: string, mode: "semantic" | "text") => {
-      doSearch(query, mode, 1);
+    (query: string) => {
+      doSearch(query, 1);
     },
     [doSearch]
   );
 
   const goToPage = useCallback(
     (page: number) => {
-      if (lastQuery) doSearch(lastQuery, lastMode, page);
+      if (lastQuery) doSearch(lastQuery, page);
     },
-    [doSearch, lastQuery, lastMode]
+    [doSearch, lastQuery]
   );
 
   return (
@@ -108,7 +104,7 @@ export default function SearchPage() {
               >
                 <div className="flex items-center gap-3 mb-2">
                   <TypeBadge type={r.type} />
-                  {state.mode === "semantic" && r.similarity != null && (
+                  {r.similarity != null && (
                     <span className="text-xs text-violet font-mono">
                       {(r.similarity * 100).toFixed(1)}% match
                     </span>
