@@ -5,23 +5,20 @@ import { useState, useCallback } from "react";
 export function SearchBar({
   onSearch,
   initialQuery = "",
-  initialMode = "semantic",
   placeholder = "Search your thoughts...",
 }: {
-  onSearch: (query: string, mode: "semantic" | "text") => void;
+  onSearch: (query: string) => void;
   initialQuery?: string;
-  initialMode?: "semantic" | "text";
   placeholder?: string;
 }) {
   const [query, setQuery] = useState(initialQuery);
-  const [mode, setMode] = useState<"semantic" | "text">(initialMode);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (query.trim()) onSearch(query.trim(), mode);
+      if (query.trim()) onSearch(query.trim());
     },
-    [query, mode, onSearch]
+    [query, onSearch]
   );
 
   return (
@@ -40,40 +37,6 @@ export function SearchBar({
         >
           Search
         </button>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="mode"
-              value="semantic"
-              checked={mode === "semantic"}
-              onChange={() => setMode("semantic")}
-              className="accent-violet"
-            />
-            <span className="text-sm text-text-secondary">Semantic</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="mode"
-              value="text"
-              checked={mode === "text"}
-              onChange={() => setMode("text")}
-              className="accent-violet"
-            />
-            <span className="text-sm text-text-secondary">Full-text</span>
-          </label>
-        </div>
-        {mode === "text" && (
-          <span className="text-xs text-text-muted">
-            Supports: <code className="text-violet/70">&quot;exact phrase&quot;</code>{" "}
-            <code className="text-violet/70">AND</code>{" "}
-            <code className="text-violet/70">OR</code>{" "}
-            <code className="text-violet/70">-exclude</code>
-          </span>
-        )}
       </div>
     </form>
   );

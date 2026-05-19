@@ -156,20 +156,18 @@ export interface SearchResponse {
   page: number;
   per_page: number;
   total_pages: number;
-  mode: string;
 }
 
 export async function searchThoughts(
   apiKey: string,
   query: string,
-  mode: "semantic" | "text" = "semantic",
   limit: number = 25,
   page: number = 1,
   excludeRestricted: boolean = true
 ): Promise<SearchResponse> {
   return apiFetch(apiKey, `/search`, {
     method: "POST",
-    body: JSON.stringify({ query, mode, limit, page, exclude_restricted: excludeRestricted }),
+    body: JSON.stringify({ query, limit, page, exclude_restricted: excludeRestricted }),
   });
 }
 
