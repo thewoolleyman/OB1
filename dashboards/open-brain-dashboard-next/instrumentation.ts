@@ -48,7 +48,18 @@ function installHoneycombOtlpGuardrail() {
       const resp = await originalFetch(input, init);
       const verdict = await interpretHoneycombResponse(resp);
       const logLine = formatGuardrailLog(verdict);
-      if (logLine !== null) console.error(logLine);
+      if (logLine !== null) {
+        console.error(logLine);
+      } else if (process.env.OB_DIAG_ROUTES_ENABLED === "true") {
+        // Positive export-OK marker, emitted ONLY when diagnostics are
+        // enabled (dormant in production, where the guardrail stays
+        // silent on clean 200s). Lets the openbrain
+        // test:e2e:honeycomb-5xx acceptance test positively confirm the
+        // OTLP export to Honeycomb returned 200 — rather than inferring
+        // success from the mere absence of a rejection log. Closes the
+        // ob-ds4 silent-401 failure mode end-to-end.
+        console.error(`[diag] OB_DIAG_OTLP_OK status=${resp.status}`);
+      }
       return resp;
     } catch (err) {
       // Network-level failures aren't visible in `vercel logs` from the
@@ -111,4 +122,20 @@ export const onRequestError: Instrumentation.onRequestError = (
   span.setAttribute("error.stack", error.stack ?? "");
   span.recordException(error);
   span.end();
+
+  // Diagnostics-only echo (dormant in production): surfaces the
+  // onRequestError firing plus error.message — which carries the
+  // openbrain acceptance test's per-run nonce when the injected 5xx
+  // came from /api/diag-500 — in Vercel runtime logs. This is the
+  // nonce-correlatable signal that test:e2e:honeycomb-5xx uses to tie
+  // its injected request to the emitted next.request_error span.
+  if (process.env.OB_DIAG_ROUTES_ENABLED === "true") {
+    console.error(
+      `[diag] OB_DIAG_REQUEST_ERROR route=${
+        context.routePath ?? request.path ?? "unknown"
+      } vercel_id=${headerValue(request.headers, "x-vercel-id")} msg=${
+        error.message
+      }`,
+    );
+  }
 };
