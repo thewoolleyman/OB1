@@ -202,6 +202,62 @@ export async function captureThought(
   });
 }
 
+// ---------- capture-task (task-explicit capture) ----------
+//
+// Unlike every other endpoint in this module, POST /capture-task on
+// open-brain-rest does NOT authenticate via x-brain-key. It enforces
+// its own credential: the X-Capture-Key header checked against the
+// server-side ANDROID_CAPTURE_KEY secret (see openbrain
+// SPECIFICATION/contracts.md § Authentication). The key MUST stay
+// server-side — this module is `server-only`, and the value is never
+// shipped to the client bundle.
+
+export interface CaptureTaskPayload {
+  content: string;
+  gtd_status?: string;
+  gtd_contexts?: string[];
+  gtd_energy_required?: string;
+  gtd_time_required?: string;
+  gtd_priority?: string;
+  para_category?: string;
+  para_container?: string;
+}
+
+/** Raw MCP-tool-shaped result relayed by open-brain-rest. */
+export interface CaptureTaskResult {
+  content?: { type: string; text?: string }[];
+  structuredContent?: Record<string, unknown>;
+  isError?: boolean;
+}
+
+export async function captureTask(
+  payload: CaptureTaskPayload
+): Promise<CaptureTaskResult> {
+  const captureKey = process.env.ANDROID_CAPTURE_KEY;
+  if (!captureKey) {
+    throw new ApiError(
+      "ANDROID_CAPTURE_KEY is not configured on the dashboard server",
+      500
+    );
+  }
+  const res = await fetch(`${API_URL}/capture-task`, {
+    method: "POST",
+    headers: {
+      "X-Capture-Key": captureKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new ApiError(
+      `API ${res.status}: ${text || res.statusText}`,
+      res.status
+    );
+  }
+  return res.json();
+}
+
 export async function fetchReflections(
   apiKey: string,
   thoughtId: string
