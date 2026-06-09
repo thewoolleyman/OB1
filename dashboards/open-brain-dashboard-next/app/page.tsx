@@ -4,6 +4,7 @@ import { StatsWidget } from "@/components/StatsWidget";
 import { KanbanSummary } from "@/components/KanbanSummary";
 import { ThoughtCard } from "@/components/ThoughtCard";
 import { AddToBrain } from "@/components/AddToBrain";
+import { AddTaskToBrain } from "@/components/AddTaskToBrain";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,16 @@ export default async function DashboardPage() {
           save one thought or extract several.
         </p>
         <AddToBrain rows={3} />
+      </div>
+
+      {/* Add Task to Brain */}
+      <div>
+        <h2 className="text-lg font-medium mb-1">Add Task</h2>
+        <p className="text-text-secondary text-sm mb-3">
+          Capture a task with explicit GTD status, contexts, and PARA
+          placement. Always saved as a triaged task.
+        </p>
+        <AddTaskToBrain rows={3} />
       </div>
 
       {/* Recent activity */}
