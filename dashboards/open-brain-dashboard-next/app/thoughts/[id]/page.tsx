@@ -11,6 +11,7 @@ import { TypeBadge } from "@/components/ThoughtCard";
 import { ThoughtEditor } from "@/components/ThoughtEditor";
 import { ThoughtDeleteButton } from "@/components/ThoughtDeleteButton";
 import { SourceLink } from "@/components/SourceLink";
+import { TriageDetails } from "@/components/TriageDetails";
 import { ReflectionComposer } from "@/components/ReflectionComposer";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { FormattedDate } from "@/components/FormattedDate";
@@ -126,6 +127,9 @@ export default async function ThoughtDetailPage({
 
       {/* Content + Edit */}
       <ThoughtEditor thought={thought} editAction={editAction} />
+
+      {/* GTD/PARA triage details (read-only; openbrain li-bwl7fg) */}
+      <TriageDetails metadata={meta} />
 
       {/* Metadata panel */}
       {(topics.length > 0 ||
