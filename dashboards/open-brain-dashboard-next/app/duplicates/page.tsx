@@ -83,6 +83,7 @@ export default function DuplicatesPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setPairs([]);
     setError(null);
     try {
       const res = await fetch(
