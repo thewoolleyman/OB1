@@ -15,7 +15,7 @@ export default function DuplicatesPage() {
   const [pairs, setPairs] = useState<DuplicatePair[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [threshold, setThreshold] = useState(0.85);
+  const [threshold, setThreshold] = useState(0.999);
   const [offset, setOffset] = useState(0);
   const [resolving, setResolving] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
@@ -157,7 +157,7 @@ export default function DuplicatesPage() {
         <div>
           <h1 className="text-2xl font-semibold mb-1">Duplicates</h1>
           <p className="text-text-secondary text-sm">
-            Semantic near-duplicates (similarity &gt; {(threshold * 100).toFixed(0)}%)
+            Semantic near-duplicates (similarity &gt; {parseFloat((threshold * 100).toFixed(1))}%)
             {!loading && ` | ${pairs.length} pairs found`}
           </p>
         </div>
@@ -172,10 +172,12 @@ export default function DuplicatesPage() {
             }}
             className="bg-bg-elevated border border-border rounded-lg px-2 py-1.5 text-sm text-text-primary"
           >
+            <option value={0.999}>99.9%</option>
+            <option value={0.99}>99%</option>
+            <option value={0.97}>97%</option>
             <option value={0.95}>95%</option>
             <option value={0.90}>90%</option>
             <option value={0.85}>85%</option>
-            <option value={0.80}>80%</option>
           </select>
         </div>
       </div>
