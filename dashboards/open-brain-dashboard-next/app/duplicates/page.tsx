@@ -228,7 +228,7 @@ export default function DuplicatesPage() {
         {pairs.map((pair) => {
           const key = pairKey(pair);
           const isResolving = resolving === key;
-          const sim = (pair.similarity * 100).toFixed(2);
+          const sim = (Math.floor(pair.similarity * 10000) / 100).toFixed(2);
 
           return (
             <div
