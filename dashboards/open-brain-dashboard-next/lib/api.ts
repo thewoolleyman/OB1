@@ -258,6 +258,31 @@ export async function captureTask(
   return res.json();
 }
 
+// ---------- para-containers (autocomplete suggestions) ----------
+//
+// GET /para-containers on open-brain-rest returns distinct
+// metadata.para_container values with usage counts, ordered count
+// desc (most-used first). Authenticated with the session's
+// x-brain-key like every other read endpoint here. Consumed by the
+// /api/para-containers proxy route for the AddTaskToBrain
+// para_container autocomplete (openbrain li-azzzay).
+
+export interface ParaContainerSuggestion {
+  para_category: string | null;
+  para_container: string;
+  count: number;
+}
+
+export async function fetchParaContainers(
+  apiKey: string
+): Promise<ParaContainerSuggestion[]> {
+  const data = await apiFetch<{ containers: ParaContainerSuggestion[] }>(
+    apiKey,
+    "/para-containers"
+  );
+  return data.containers;
+}
+
 export async function fetchReflections(
   apiKey: string,
   thoughtId: string
