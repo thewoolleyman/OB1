@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Task-explicit capture form (openbrain li-tqoa2a). Hardcodes
 // type=task semantics by POSTing to /api/capture-task, which proxies
@@ -97,10 +97,58 @@ export function AddTaskToBrain({ rows = 3, onSuccess }: AddTaskToBrainProps) {
   const [gtdPriority, setGtdPriority] = useState<string | null>(null);
   const [paraCategory, setParaCategory] = useState<string | null>(null);
   const [paraContainer, setParaContainer] = useState("");
+  // `null` = no suggestions loaded (not yet fetched, or fetch failed)
+  // — the container field renders as a plain text input in that case.
+  const [containerSuggestions, setContainerSuggestions] = useState<
+    string[] | null
+  >(null);
+  const [containerFocused, setContainerFocused] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CaptureTaskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // PARA-container autocomplete (openbrain li-azzzay; spec.md
+  // § Dashboard, AddTaskToBrain `para_container` bullet, v055): fetch
+  // suggestions once when the Triage-details section opens, via the
+  // server-side /api/para-containers proxy (most-used first — upstream
+  // ordering relayed verbatim). Suggestion-fetch failure MUST NOT
+  // block capture: on any error the field stays a plain text input.
+  useEffect(() => {
+    if (!showDetails || containerSuggestions !== null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/para-containers");
+        if (!res.ok) return; // degrade silently to plain input
+        const data = (await res.json()) as {
+          containers?: { para_container?: unknown }[];
+        };
+        if (cancelled || !Array.isArray(data.containers)) return;
+        setContainerSuggestions(
+          data.containers
+            .map((c) => c.para_container)
+            .filter((v): v is string => typeof v === "string" && v.length > 0)
+        );
+      } catch {
+        // degrade silently to plain input
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showDetails, containerSuggestions]);
+
+  // Client-side type-to-filter over the fetched suggestions
+  // (case-insensitive substring). The exact current value is excluded
+  // so the dropdown closes once a suggestion has been picked.
+  const containerQuery = paraContainer.trim().toLowerCase();
+  const filteredContainers = (containerSuggestions ?? []).filter(
+    (c) =>
+      c.toLowerCase().includes(containerQuery) && c !== paraContainer.trim()
+  );
+  const showContainerSuggestions =
+    containerFocused && filteredContainers.length > 0;
 
   const toggleContext = (ctx: string) => {
     setGtdContexts((prev) =>
@@ -269,14 +317,55 @@ export function AddTaskToBrain({ rows = 3, onSuccess }: AddTaskToBrainProps) {
                   PARA container
                   <span className="text-text-muted font-normal"> (optional)</span>
                 </label>
-                <input
-                  id="add-task-para-container"
-                  type="text"
-                  value={paraContainer}
-                  onChange={(e) => setParaContainer(e.target.value)}
-                  placeholder="e.g. Home Renovation"
-                  className="w-full bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30 transition"
-                />
+                {/* Editable autocomplete: free typing always works;
+                    suggestions (when fetched) overlay below the input.
+                    With no suggestions loaded this renders exactly the
+                    plain text input. */}
+                <div className="relative">
+                  <input
+                    id="add-task-para-container"
+                    type="text"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={showContainerSuggestions}
+                    aria-controls="add-task-para-container-suggestions"
+                    autoComplete="off"
+                    value={paraContainer}
+                    onChange={(e) => setParaContainer(e.target.value)}
+                    onFocus={() => setContainerFocused(true)}
+                    onBlur={() => setContainerFocused(false)}
+                    placeholder="e.g. Home Renovation"
+                    className="w-full bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30 transition"
+                  />
+                  {showContainerSuggestions && (
+                    <ul
+                      id="add-task-para-container-suggestions"
+                      role="listbox"
+                      aria-label="PARA container suggestions"
+                      className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-bg-elevated border border-border rounded-lg shadow-lg py-1"
+                    >
+                      {filteredContainers.map((c) => (
+                        <li key={c} role="presentation">
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={false}
+                            onMouseDown={(e) => {
+                              // mousedown fires before the input's
+                              // blur, so the pick isn't lost; insert
+                              // the exact stored spelling.
+                              e.preventDefault();
+                              setParaContainer(c);
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-surface hover:text-text-primary transition-colors"
+                          >
+                            {c}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             </div>
           )}
