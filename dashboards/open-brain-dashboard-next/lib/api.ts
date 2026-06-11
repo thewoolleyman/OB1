@@ -134,6 +134,19 @@ export async function fetchDuplicates(
   return apiFetch(apiKey, `/duplicates${qs ? `?${qs}` : ""}`);
 }
 
+// Persistent duplicate resolutions (openbrain li-xyuon6). Idempotent;
+// keep_both entries whose member rows are missing are skipped
+// (counted in `skipped`, not errored).
+export async function resolveDuplicates(
+  apiKey: string,
+  resolutions: import("./types").DuplicateResolution[]
+): Promise<import("./types").ResolveDuplicatesResponse> {
+  return apiFetch(apiKey, "/duplicates/resolve", {
+    method: "POST",
+    body: JSON.stringify({ resolutions }),
+  });
+}
+
 export async function deleteThought(
   apiKey: string,
   id: string

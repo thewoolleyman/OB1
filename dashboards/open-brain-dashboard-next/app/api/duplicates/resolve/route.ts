@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteThought } from "@/lib/api";
+import { resolveDuplicates, ApiError } from "@/lib/api";
 import { requireSession, AuthError } from "@/lib/auth";
+import type { DuplicateResolution } from "@/lib/types";
+
+// ── POST — persistent duplicate resolutions (openbrain li-xyuon6) ────
+//
+// Pass-through proxy to `${API_URL}/duplicates/resolve` on
+// open-brain-rest. Body:
+//   { resolutions: [{ pair: [a, b], action: "delete" | "keep_both",
+//     delete_id? }] }
+// delete_id is required for action="delete" and MUST be one of the two
+// pair members — the other member survives and is recorded as the
+// keeper. Response relays upstream verbatim:
+//   { resolved, deleted, skipped }
+// The endpoint is idempotent; keep_both entries whose member rows are
+// missing are skipped (counted, not errored), and after a keep_both
+// resolution GET /duplicates permanently excludes the pair. Deep
+// validation (delete_id membership, UUID shape) is upstream's job —
+// invalid entries relay as its 400 rather than being re-checked here.
 
 export async function POST(request: NextRequest) {
   let apiKey: string;
@@ -13,38 +30,26 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { action, thought_id_a, thought_id_b } = (await request.json()) as {
-      action: "keep_a" | "keep_b" | "keep_both";
-      thought_id_a: string;
-      thought_id_b: string;
+    const body = (await request.json()) as {
+      resolutions?: DuplicateResolution[];
     };
 
-    if (!thought_id_a || !thought_id_b) {
+    if (!Array.isArray(body.resolutions) || body.resolutions.length === 0) {
       return NextResponse.json(
-        { error: "Both thought_id_a and thought_id_b are required" },
+        { error: "resolutions must be a non-empty array" },
         { status: 400 }
       );
     }
 
-    if (action === "keep_a") {
-      await deleteThought(apiKey, thought_id_b);
-      return NextResponse.json({ deleted: thought_id_b, kept: thought_id_a });
-    }
-
-    if (action === "keep_b") {
-      await deleteThought(apiKey, thought_id_a);
-      return NextResponse.json({ deleted: thought_id_a, kept: thought_id_b });
-    }
-
-    if (action === "keep_both") {
-      return NextResponse.json({ kept: [thought_id_a, thought_id_b] });
-    }
-
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    const result = await resolveDuplicates(apiKey, body.resolutions);
+    return NextResponse.json(result);
   } catch (err) {
+    // Relay upstream validation failures (400) with their status;
+    // everything else is a 500.
+    const status = err instanceof ApiError ? err.status : 500;
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Resolve failed" },
-      { status: 500 }
+      { status: status >= 400 && status < 600 ? status : 500 }
     );
   }
 }
