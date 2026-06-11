@@ -124,6 +124,24 @@ export interface DuplicatesResponse {
   offset: number;
 }
 
+// POST /duplicates/resolve — persistent duplicate resolutions
+// (openbrain li-xyuon6). `delete_id` is required when action is
+// "delete" and MUST be one of the two pair members (the other member
+// survives and is recorded as the keeper); omitted for "keep_both".
+// After a keep_both resolution the backend permanently excludes the
+// pair from GET /duplicates.
+export interface DuplicateResolution {
+  pair: [string, string];
+  action: "delete" | "keep_both";
+  delete_id?: string;
+}
+
+export interface ResolveDuplicatesResponse {
+  resolved: number;
+  deleted: number;
+  skipped: number;
+}
+
 export interface ReflectionOption {
   label: string;
 }

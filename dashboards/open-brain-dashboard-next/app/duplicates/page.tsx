@@ -4,12 +4,30 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { TypeBadge } from "@/components/ThoughtCard";
 import { DeleteModal } from "@/components/DeleteModal";
-import type { DuplicatePair } from "@/lib/types";
+import type { DuplicatePair, DuplicateResolution } from "@/lib/types";
 
 const PER_PAGE = 30;
 
-// Tracks resolution for a pair — "keep_a" = delete B, "keep_b" = delete A, "keep_both" = dismiss
+// Tracks resolution for a pair — "keep_a" = delete B, "keep_b" = delete A,
+// "keep_both" = persistently dismiss (recorded server-side; the pair is
+// permanently excluded from GET /duplicates — openbrain li-xyuon6)
 type Selection = "keep_a" | "keep_b" | "keep_both";
+
+// Map a UI selection onto the REST /duplicates/resolve entry shape.
+// For deletes, delete_id names the thought being deleted so the
+// resolution row records the surviving partner as the keeper.
+const toResolution = (
+  action: Selection,
+  pair: DuplicatePair
+): DuplicateResolution =>
+  action === "keep_both"
+    ? { pair: [pair.thought_id_a, pair.thought_id_b], action: "keep_both" }
+    : {
+        pair: [pair.thought_id_a, pair.thought_id_b],
+        action: "delete",
+        delete_id:
+          action === "keep_a" ? pair.thought_id_b : pair.thought_id_a,
+      };
 
 export default function DuplicatesPage() {
   const [pairs, setPairs] = useState<DuplicatePair[]>([]);
@@ -47,38 +65,44 @@ export default function DuplicatesPage() {
   const processBatch = async () => {
     setBatchProcessing(true);
     setError(null);
-    const entries = Object.entries(selections);
-    const removedKeys: string[] = [];
 
-    for (const [key, action] of entries) {
+    // One POST carries every selected resolution — the endpoint
+    // accepts an array and is idempotent.
+    const entries: { key: string; resolution: DuplicateResolution }[] = [];
+    for (const [key, action] of Object.entries(selections)) {
       const pair = pairs.find((p) => pairKey(p) === key);
       if (!pair) continue;
-      try {
+      entries.push({ key, resolution: toResolution(action, pair) });
+    }
+
+    try {
+      if (entries.length > 0) {
         const res = await fetch("/api/duplicates/resolve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action,
-            thought_id_a: pair.thought_id_a,
-            thought_id_b: pair.thought_id_b,
+            resolutions: entries.map((e) => e.resolution),
           }),
         });
-        if (!res.ok) throw new Error(`Failed for pair ${key}`);
-        removedKeys.push(key);
-      } catch {
-        // Continue with remaining — partial success is fine
+        if (!res.ok) throw new Error("Batch resolve failed");
       }
-    }
 
-    // Remove resolved pairs from state
-    setPairs((prev) => prev.filter((p) => !removedKeys.includes(pairKey(p))));
-    setSelections((prev) => {
-      const next = { ...prev };
-      for (const k of removedKeys) delete next[k];
-      return next;
-    });
-    setBatchProcessing(false);
-    setConfirmBatch(false);
+      // Remove resolved pairs from state
+      const removedKeys = entries.map((e) => e.key);
+      setPairs((prev) =>
+        prev.filter((p) => !removedKeys.includes(pairKey(p)))
+      );
+      setSelections((prev) => {
+        const next = { ...prev };
+        for (const k of removedKeys) delete next[k];
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Batch resolve failed");
+    } finally {
+      setBatchProcessing(false);
+      setConfirmBatch(false);
+    }
   };
 
   const load = useCallback(async () => {
@@ -103,20 +127,16 @@ export default function DuplicatesPage() {
     load();
   }, [load]);
 
-  const resolve = async (
-    action: "keep_a" | "keep_b" | "keep_both",
-    pair: DuplicatePair
-  ) => {
+  const resolve = async (action: Selection, pair: DuplicatePair) => {
     const key = `${pair.thought_id_a}-${pair.thought_id_b}`;
     setResolving(key);
+    setError(null);
     try {
       const res = await fetch("/api/duplicates/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action,
-          thought_id_a: pair.thought_id_a,
-          thought_id_b: pair.thought_id_b,
+          resolutions: [toResolution(action, pair)],
         }),
       });
       if (!res.ok) throw new Error("Resolve failed");
@@ -129,6 +149,13 @@ export default function DuplicatesPage() {
             )
         )
       );
+      // Drop any lingering batch selection for the resolved pair
+      setSelections((prev) => {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resolve failed");
     } finally {
@@ -258,6 +285,14 @@ export default function DuplicatesPage() {
                     />
                     Keep Both
                   </label>
+                  <button
+                    disabled={isResolving}
+                    onClick={() => resolve("keep_both", pair)}
+                    title="Keep both now — the pair is recorded as resolved and never resurfaces"
+                    className="px-3 py-1 text-xs font-medium text-violet border border-violet/20 rounded-lg hover:bg-violet-surface transition-colors disabled:opacity-30"
+                  >
+                    Keep Both Now
+                  </button>
                 </div>
               </div>
 
