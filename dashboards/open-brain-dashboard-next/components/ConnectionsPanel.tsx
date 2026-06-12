@@ -8,7 +8,6 @@ import { FormattedDate } from "./FormattedDate";
 interface Connection {
   id: string;
   type: string;
-  importance: number;
   preview: string;
   content: string;
   created_at: string;

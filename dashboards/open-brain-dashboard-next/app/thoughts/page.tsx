@@ -21,9 +21,6 @@ export default async function ThoughtsPage({
   const page = parseInt(params.page || "1", 10);
   const type = params.type || "";
   const source_type = params.source_type || "";
-  const importance_min = params.importance_min
-    ? parseInt(params.importance_min, 10)
-    : undefined;
 
   let data;
   try {
@@ -32,7 +29,6 @@ export default async function ThoughtsPage({
       per_page: 25,
       type: type || undefined,
       source_type: source_type || undefined,
-      importance_min,
       exclude_restricted: excludeRestricted,
     });
   } catch (err) {
@@ -54,7 +50,6 @@ export default async function ThoughtsPage({
     sp.set("page", String(p));
     if (type) sp.set("type", type);
     if (source_type) sp.set("source_type", source_type);
-    if (importance_min) sp.set("importance_min", String(importance_min));
     return `/thoughts?${sp.toString()}`;
   }
 
@@ -72,7 +67,6 @@ export default async function ThoughtsPage({
         types={[...THOUGHT_TYPES]}
         currentType={type}
         currentSource={source_type}
-        currentImportance={importance_min}
       />
 
       {/* Table */}
@@ -82,7 +76,6 @@ export default async function ThoughtsPage({
             <tr className="border-b border-border text-text-muted text-xs uppercase tracking-wider">
               <th className="text-left px-4 py-3 font-medium">Content</th>
               <th className="text-left px-4 py-3 font-medium w-24">Type</th>
-              <th className="text-left px-4 py-3 font-medium w-20">Imp.</th>
               <th className="text-left px-4 py-3 font-medium w-40">Date</th>
               <th className="text-left px-4 py-3 font-medium w-32">Source</th>
             </tr>
@@ -106,7 +99,6 @@ export default async function ThoughtsPage({
                 <td className="px-4 py-3">
                   <TypeBadge type={t.type} />
                 </td>
-                <td className="px-4 py-3 text-text-muted">{t.importance}</td>
                 <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">
                   <FormattedDate date={t.created_at} />
                 </td>

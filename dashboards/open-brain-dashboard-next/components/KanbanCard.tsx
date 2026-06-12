@@ -4,7 +4,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Thought } from "@/lib/types";
 import { TypeBadge } from "@/components/ThoughtCard";
-import { PriorityDot } from "@/components/PriorityDot";
 import { SourceLink } from "@/components/SourceLink";
 
 function formatAge(dateString: string): string {
@@ -21,7 +20,6 @@ function formatAge(dateString: string): string {
 interface KanbanCardProps {
   thought: Thought;
   onCardClick: (thought: Thought) => void;
-  onPriorityChange: (thoughtId: string, importance: number) => void;
   showArchiveButton?: boolean;
   onArchive?: (thoughtId: string) => void;
 }
@@ -29,7 +27,6 @@ interface KanbanCardProps {
 export function KanbanCard({
   thought,
   onCardClick,
-  onPriorityChange,
   showArchiveButton = false,
   onArchive,
 }: KanbanCardProps) {
@@ -66,11 +63,7 @@ export function KanbanCard({
           : "border-border hover:border-violet/30"
       }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <PriorityDot
-          importance={thought.importance}
-          onPriorityChange={(val) => onPriorityChange(thought.id, val)}
-        />
+      <div className="flex items-start justify-end gap-2 mb-1.5">
         <TypeBadge type={thought.type} />
       </div>
 

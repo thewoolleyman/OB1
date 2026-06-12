@@ -7,7 +7,7 @@ import { FormattedDate } from "@/components/FormattedDate";
 // thought's metadata; absent fields are omitted entirely (no empty
 // placeholders), and the whole section is omitted when none are
 // present. Display only — mutation affordances belong to
-// ThoughtActions, and `importance` deliberately does NOT render here.
+// ThoughtActions.
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;

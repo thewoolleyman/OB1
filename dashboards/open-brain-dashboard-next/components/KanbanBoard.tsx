@@ -128,23 +128,6 @@ export function KanbanBoard() {
     });
   }
 
-  async function handlePriorityChange(thoughtId: string, newImportance: number) {
-    previousThoughts.current = [...thoughts];
-    setThoughts((prev) =>
-      prev.map((t) =>
-        t.id === thoughtId ? { ...t, importance: newImportance } : t
-      )
-    );
-
-    try {
-      await apiUpdateKanban(thoughtId, { importance: newImportance });
-    } catch {
-      setThoughts(previousThoughts.current);
-      setError("Failed to update priority. Reverted.");
-      setTimeout(() => setError(null), 5000);
-    }
-  }
-
   // gtd_status = "archived" is workflow-managed: the board is the
   // surface that sets it, but archived rows have no column and
   // disappear from the board (spec.md § Dashboard "Kanban view").
@@ -278,7 +261,6 @@ export function KanbanBoard() {
               status={status}
               thoughts={grouped[status] || []}
               onCardClick={setSelectedThought}
-              onPriorityChange={handlePriorityChange}
               onArchive={handleArchive}
             />
           ))}
@@ -289,7 +271,6 @@ export function KanbanBoard() {
               <KanbanCard
                 thought={activeDragThought}
                 onCardClick={() => {}}
-                onPriorityChange={() => {}}
               />
             </div>
           )}

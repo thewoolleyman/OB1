@@ -42,11 +42,6 @@ export function ThoughtCard({
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <TypeBadge type={thought.type} />
-          {thought.importance > 0 && (
-            <span className="text-xs text-text-muted">
-              imp: {thought.importance}
-            </span>
-          )}
         </div>
         <FormattedDate date={thought.created_at} className="text-xs text-text-muted whitespace-nowrap" />
       </div>

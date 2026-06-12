@@ -20,7 +20,7 @@ Provides 9 pages for managing your thoughts:
 |------|-------------|
 | **Dashboard** | Stats overview (total thoughts, type distribution, top topics), recent activity, quick capture, workflow summary widget |
 | **Workflow** | Kanban board for tasks and ideas with drag-and-drop status management (New → Planning → Active → Review → Done → Archived) |
-| **Browse** | Paginated thought table with filters for type, source, and importance |
+| **Browse** | Paginated thought table with filters for type and source |
 | **Detail** | Full thought view with inline editing, delete, linked reflections, and related connections |
 | **Search** | Semantic (vector similarity) and full-text search with match scores and pagination |
 | **Add to Brain** | Smart ingest with auto-routing — short text goes to single capture, long text to extraction with dry-run preview |
@@ -111,10 +111,10 @@ When working correctly:
 
 - **Login page** accepts your Open Brain API key and redirects to the dashboard
 - **Dashboard** shows thought count, type distribution chart, top topics, and recent thoughts
-- **Browse** displays a paginated table of all thoughts with working type/source/importance filters
+- **Browse** displays a paginated table of all thoughts with working type/source filters
 - **Search** returns results with similarity scores (semantic mode) or rank scores (full-text mode)
 - **Add to Brain** auto-routes short text (< 500 chars, single paragraph) to single capture, and long/structured text to extraction with dry-run preview
-- **Detail page** shows full thought content with metadata, inline edit for content/type/importance, and linked reflections
+- **Detail page** shows full thought content with metadata, inline edit for content/type, and linked reflections
 - **Agent Memory** shows pending agent-written memories, lets you confirm/evidence-only/reject them, inspects provenance/source data, and loads recall traces by request id
 
 ## Workflow Board
@@ -126,8 +126,7 @@ The Workflow page adds a visual kanban board for managing `task` and `idea` thou
 - **Drag-and-drop** between status columns using @dnd-kit (touch-friendly with 200ms hold delay)
 - **Collapsible columns** — click the arrow to collapse any column to a slim vertical bar (persisted in localStorage)
 - **Auto-adjusting widths** — expanded columns share available space equally, no horizontal scrollbar
-- **Inline editing** — tap a card to open the edit modal (status, priority, type, content)
-- **Priority dots** — click to change priority (Critical/High/Medium/Low mapped from importance 0-100)
+- **Inline editing** — tap a card to open the edit modal (status, type, content)
 - **Dashboard widget** — summary of active workflow items on the main dashboard
 - **Mobile-first** — responsive layout, pinch-to-zoom enabled, full-screen edit modal on small screens
 
@@ -163,7 +162,7 @@ The dashboard calls these endpoints on your Open Brain REST API:
 | `/health` | GET | Login validation |
 | `/thoughts` | GET | Browse page (paginated, filtered) |
 | `/thought/:id` | GET | Detail page |
-| `/thought/:id` | PUT | Inline edit (content, type, importance) |
+| `/thought/:id` | PUT | Inline edit (content, type) |
 | `/thought/:id` | DELETE | Delete button |
 | `/search` | POST | Search page (semantic + full-text) |
 | `/stats` | GET | Dashboard stats widget |
