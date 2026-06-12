@@ -6,8 +6,6 @@ import type { Thought, KanbanStatus } from "@/lib/types";
 import {
   KANBAN_STATUSES,
   KANBAN_LABELS,
-  PRIORITY_LEVELS,
-  getPriorityLevel,
   THOUGHT_TYPES,
   KANBAN_TYPES,
   getGtdStatus,
@@ -18,7 +16,7 @@ interface KanbanCardModalProps {
   thought: Thought;
   onSave: (
     thoughtId: string,
-    updates: { content?: string; gtd_status?: string; importance?: number; type?: string }
+    updates: { content?: string; gtd_status?: string; type?: string }
   ) => void;
   onArchive: (thoughtId: string) => void;
   onDelete: (thoughtId: string) => void;
@@ -35,7 +33,6 @@ export function KanbanCardModal({
   const initialStatus = getGtdStatus(thought) ?? "";
   const [content, setContent] = useState(thought.content);
   const [status, setStatus] = useState(initialStatus);
-  const [importance, setImportance] = useState(thought.importance);
   const [type, setType] = useState(thought.type);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -44,7 +41,6 @@ export function KanbanCardModal({
   const hasChanges =
     content !== thought.content ||
     status !== initialStatus ||
-    importance !== thought.importance ||
     type !== thought.type;
 
   const tryClose = useCallback(() => {
@@ -93,12 +89,10 @@ export function KanbanCardModal({
     const updates: {
       content?: string;
       gtd_status?: string;
-      importance?: number;
       type?: string;
     } = {};
     if (content !== thought.content) updates.content = content;
     if (status !== initialStatus && status) updates.gtd_status = status;
-    if (importance !== thought.importance) updates.importance = importance;
     // Changing to a non-kanban type removes it from the board
     // (type ≠ "task" rows never render here).
     if (type !== thought.type) updates.type = type;
@@ -117,7 +111,6 @@ export function KanbanCardModal({
     month: "short",
     day: "numeric",
   });
-  const currentPriority = getPriorityLevel(importance);
 
   return <>{createPortal(
     <div
@@ -171,8 +164,8 @@ export function KanbanCardModal({
 
         {/* Fields — scrollable */}
         <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
-          {/* Status + Priority + Type row */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Status + Type row */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-text-muted mb-1">Status</label>
               <select
@@ -198,24 +191,6 @@ export function KanbanCardModal({
                   </option>
                 ))}
                 <option value="archived">Archived</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs text-text-muted mb-1">Priority</label>
-              <select
-                value={currentPriority.label}
-                onChange={(e) => {
-                  const level = PRIORITY_LEVELS.find((p) => p.label === e.target.value);
-                  if (level) setImportance(level.value);
-                }}
-                className="w-full bg-bg-hover border border-border rounded-lg px-2.5 py-1.5 text-sm text-text-primary focus:outline-none focus:border-violet/40"
-              >
-                {PRIORITY_LEVELS.map((p) => (
-                  <option key={p.label} value={p.label}>
-                    {p.label}
-                  </option>
-                ))}
               </select>
             </div>
 

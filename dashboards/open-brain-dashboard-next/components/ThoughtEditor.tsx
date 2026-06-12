@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import type { Thought } from "@/lib/types";
 import { THOUGHT_TYPES } from "@/lib/types";
 
-const IMPORTANCE_OPTIONS = [1, 2, 3, 4, 5];
-
 export function ThoughtEditor({
   thought,
   editAction,
@@ -64,24 +62,6 @@ export function ThoughtEditor({
             {THOUGHT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-text-muted mb-1">
-            Importance
-          </label>
-          <select
-            name="importance"
-            defaultValue={String(
-              Math.min(Math.max(thought.importance || 3, 1), 5)
-            )}
-            className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-20 focus:outline-none focus:border-violet"
-          >
-            {IMPORTANCE_OPTIONS.map((level) => (
-              <option key={level} value={level}>
-                {level}
               </option>
             ))}
           </select>

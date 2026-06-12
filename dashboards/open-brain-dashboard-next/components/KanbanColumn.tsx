@@ -29,7 +29,6 @@ interface KanbanColumnProps {
   status: string;
   thoughts: Thought[];
   onCardClick: (thought: Thought) => void;
-  onPriorityChange: (thoughtId: string, importance: number) => void;
   onArchive: (thoughtId: string) => void;
 }
 
@@ -37,7 +36,6 @@ export function KanbanColumn({
   status,
   thoughts,
   onCardClick,
-  onPriorityChange,
   onArchive,
 }: KanbanColumnProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -127,7 +125,6 @@ export function KanbanColumn({
                 key={thought.id}
                 thought={thought}
                 onCardClick={onCardClick}
-                onPriorityChange={onPriorityChange}
                 showArchiveButton={status === "done"}
                 onArchive={onArchive}
               />

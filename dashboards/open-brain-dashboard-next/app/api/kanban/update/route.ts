@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { thoughtId, gtd_status, importance, content, type } = body;
+    const { thoughtId, gtd_status, content, type } = body;
 
     if (!thoughtId || typeof thoughtId !== "string") {
       return NextResponse.json(
@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
 
     const updates: Record<string, unknown> = {};
     if (gtd_status !== undefined) updates.gtd_status = gtd_status;
-    if (importance !== undefined) updates.importance = importance;
     if (content !== undefined) updates.content = content;
     if (type !== undefined) updates.type = type;
 

@@ -4,7 +4,6 @@ export interface Thought {
   content: string;
   type: string;
   source_type: string;
-  importance: number;
   quality_score: number;
   sensitivity_tier: string;
   metadata: Record<string, unknown>;
@@ -125,17 +124,6 @@ export const SOURCE_LABELS: Record<string, string> = {
   gdrive: "Drive",
   slack: "Slack",
 };
-
-export const PRIORITY_LEVELS = [
-  { label: "Critical", min: 80, value: 90, color: "bg-red-500", textColor: "text-red-400" },
-  { label: "High", min: 60, value: 70, color: "bg-orange-500", textColor: "text-orange-400" },
-  { label: "Medium", min: 30, value: 50, color: "bg-yellow-500", textColor: "text-yellow-400" },
-  { label: "Low", min: 0, value: 20, color: "bg-slate-500", textColor: "text-slate-400" },
-] as const;
-
-export function getPriorityLevel(importance: number) {
-  return PRIORITY_LEVELS.find((p) => importance >= p.min) ?? PRIORITY_LEVELS[PRIORITY_LEVELS.length - 1];
-}
 
 export interface Reflection {
   id: string | number;

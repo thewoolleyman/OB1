@@ -47,7 +47,6 @@ export async function fetchThoughts(
     per_page?: number;
     type?: string;
     source_type?: string;
-    importance_min?: number;
     quality_score_max?: number;
     sort?: string;
     order?: string;
@@ -59,8 +58,6 @@ export async function fetchThoughts(
   if (params?.per_page) sp.set("per_page", String(params.per_page));
   if (params?.type) sp.set("type", params.type);
   if (params?.source_type) sp.set("source_type", params.source_type);
-  if (params?.importance_min)
-    sp.set("importance_min", String(params.importance_min));
   if (params?.quality_score_max !== undefined)
     sp.set("quality_score_max", String(params.quality_score_max));
   if (params?.sort) sp.set("sort", params.sort);
@@ -88,7 +85,6 @@ export async function updateThought(
     type?: string;
     gtd_status?: string;
     gtd_triaged_at?: string;
-    importance?: number;
   }
 ): Promise<{ id: string; action: string; message: string }> {
   return apiFetch<{ id: string; action: string; message: string }>(

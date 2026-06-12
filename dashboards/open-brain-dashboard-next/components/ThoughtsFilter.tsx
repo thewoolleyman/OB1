@@ -3,18 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-const IMPORTANCE_OPTIONS = [1, 2, 3, 4, 5];
-
 export function ThoughtsFilter({
   types,
   currentType,
   currentSource,
-  currentImportance,
 }: {
   types: string[];
   currentType: string;
   currentSource: string;
-  currentImportance: number | undefined;
 }) {
   const router = useRouter();
   const [sourceInput, setSourceInput] = useState(currentSource);
@@ -27,16 +23,14 @@ export function ThoughtsFilter({
       const vals = {
         type: currentType,
         source_type: currentSource,
-        importance_min: currentImportance?.toString() || "",
         ...overrides,
       };
       sp.set("page", "1");
       if (vals.type) sp.set("type", vals.type);
       if (vals.source_type) sp.set("source_type", vals.source_type);
-      if (vals.importance_min) sp.set("importance_min", vals.importance_min);
       router.push(`/thoughts?${sp.toString()}`);
     },
-    [router, currentType, currentSource, currentImportance]
+    [router, currentType, currentSource]
   );
 
   return (
@@ -76,33 +70,11 @@ export function ThoughtsFilter({
         />
       </div>
 
-      <div>
-        <label className="block text-xs text-text-muted mb-1">
-          Min Importance
-        </label>
-        <select
-          value={currentImportance?.toString() || ""}
-          onChange={(e) =>
-            applyFilters({
-              importance_min: e.target.value,
-            })
-          }
-          className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-violet"
-        >
-          <option value="">All levels</option>
-          {IMPORTANCE_OPTIONS.map((level) => (
-            <option key={level} value={level}>
-              {level}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {(currentType || currentSource || currentImportance) && (
+      {(currentType || currentSource) && (
         <button
           onClick={() => {
             setSourceInput("");
-            applyFilters({ type: "", source_type: "", importance_min: "" });
+            applyFilters({ type: "", source_type: "" });
           }}
           className="text-xs text-text-muted hover:text-danger transition-colors pb-2"
         >

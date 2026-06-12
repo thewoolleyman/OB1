@@ -71,8 +71,7 @@ export default async function ThoughtDetailPage({
     const { apiKey } = await requireSessionOrRedirect();
     const content = formData.get("content") as string;
     const type = formData.get("type") as string;
-    const importance = parseInt(formData.get("importance") as string, 10);
-    await updateThought(apiKey, thoughtId, { content, type, importance });
+    await updateThought(apiKey, thoughtId, { content, type });
   }
 
   const gtdStatus = getGtdStatus(thought);
@@ -97,9 +96,6 @@ export default async function ThoughtDetailPage({
                 UUID: {thought.uuid}
               </span>
             )}
-            <span className="text-xs text-text-muted">
-              Importance: {thought.importance}
-            </span>
             {thought.quality_score > 0 && (
               <span className="text-xs text-text-muted">
                 Quality: {thought.quality_score}
