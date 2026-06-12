@@ -1,15 +1,15 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   fetchThought,
   updateThought,
-  deleteThought,
   fetchReflections,
   ApiError,
 } from "@/lib/api";
 import { requireSessionOrRedirect, getSession } from "@/lib/auth";
+import { getGtdStatus } from "@/lib/types";
 import { TypeBadge } from "@/components/ThoughtCard";
 import { ThoughtEditor } from "@/components/ThoughtEditor";
-import { ThoughtDeleteButton } from "@/components/ThoughtDeleteButton";
+import { ThoughtActions } from "@/components/ThoughtActions";
 import { SourceLink } from "@/components/SourceLink";
 import { TriageDetails } from "@/components/TriageDetails";
 import { ReflectionComposer } from "@/components/ReflectionComposer";
@@ -75,12 +75,7 @@ export default async function ThoughtDetailPage({
     await updateThought(apiKey, thoughtId, { content, type, importance });
   }
 
-  async function deleteAction() {
-    "use server";
-    const { apiKey } = await requireSessionOrRedirect();
-    await deleteThought(apiKey, thoughtId);
-    redirect("/thoughts");
-  }
+  const gtdStatus = getGtdStatus(thought);
 
   return (
     <div className="space-y-6">
@@ -89,9 +84,9 @@ export default async function ThoughtDetailPage({
         <div>
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             <TypeBadge type={thought.type} />
-            {thought.status && (
+            {gtdStatus && (
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border bg-violet/15 text-violet border-violet/20">
-                {thought.status}
+                {gtdStatus}
               </span>
             )}
             <span className="text-xs text-text-muted font-mono">
@@ -119,9 +114,11 @@ export default async function ThoughtDetailPage({
               ` | Sensitivity: ${thought.sensitivity_tier}`}
           </p>
         </div>
-        <div className="flex items-start gap-3">
+        <div className="flex flex-col items-end gap-2">
           <SourceLink metadata={thought.metadata} compact={false} />
-          <ThoughtDeleteButton deleteAction={deleteAction} />
+          {/* Promote / not-actionable / change-gtd_status / edit /
+              delete per spec.md § Dashboard "ThoughtActions" */}
+          <ThoughtActions thought={thought} surface="detail" />
         </div>
       </div>
 

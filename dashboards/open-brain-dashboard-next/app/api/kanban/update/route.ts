@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, AuthError } from "@/lib/auth";
 import { updateThought } from "@/lib/api";
+import { KANBAN_STATUSES } from "@/lib/types";
 
-const VALID_STATUSES = [
-  "new",
-  "planning",
-  "active",
-  "review",
-  "done",
-  "archived",
-];
+// gtd_status enum per openbrain contracts.md § Metadata JSON
+// Schema: the six board columns plus the workflow-managed
+// "archived" (set by the board's Archive affordance; archived rows
+// have no column).
+const VALID_GTD_STATUSES = [...KANBAN_STATUSES, "archived"];
 
 export async function POST(request: NextRequest) {
   let apiKey: string;
@@ -23,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { thoughtId, status, importance, content, type } = body;
+    const { thoughtId, gtd_status, importance, content, type } = body;
 
     if (!thoughtId || typeof thoughtId !== "string") {
       return NextResponse.json(
@@ -32,15 +30,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (status !== undefined && status !== null && !VALID_STATUSES.includes(status)) {
+    if (gtd_status !== undefined && !VALID_GTD_STATUSES.includes(gtd_status)) {
       return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
+        {
+          error: `Invalid gtd_status. Must be one of: ${VALID_GTD_STATUSES.join(", ")}`,
+        },
         { status: 400 }
       );
     }
 
     const updates: Record<string, unknown> = {};
-    if (status !== undefined) updates.status = status;
+    if (gtd_status !== undefined) updates.gtd_status = gtd_status;
     if (importance !== undefined) updates.importance = importance;
     if (content !== undefined) updates.content = content;
     if (type !== undefined) updates.type = type;

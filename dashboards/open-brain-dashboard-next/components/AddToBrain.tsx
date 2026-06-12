@@ -7,6 +7,7 @@ import type {
   IngestionItem,
   IngestionJobDetail,
 } from "@/lib/types";
+import { GTD_CAPTURE_STATUSES } from "@/lib/types";
 
 interface AddToBrainProps {
   /** Textarea row count (default 4) */
@@ -59,6 +60,14 @@ export function AddToBrain({
 }: AddToBrainProps) {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<AddToBrainMode>("auto");
+  // Capture-as-task toggle per openbrain spec.md § Dashboard: the
+  // shared metadata extractor still runs (backend-side, inside the
+  // capture_task MCP tool) but type is overridden to "task",
+  // gtd_status defaults to "next" (operator-adjustable via the
+  // inline picker; done/archived never offered), and
+  // gtd_triaged_at = now() is stamped by the tool.
+  const [captureAsTask, setCaptureAsTask] = useState(false);
+  const [taskGtdStatus, setTaskGtdStatus] = useState<string>("next");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AddToBrainResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +105,39 @@ export function AddToBrain({
     setExecuteError(null);
 
     try {
+      if (captureAsTask) {
+        // Task-explicit path: POST /api/capture-task →
+        // open-brain-rest POST /capture-task → MCP capture_task
+        // tool. The tool runs the shared extractor on content and
+        // overrides type to "task"; the dashboard never sets type
+        // or gtd_triaged_at client-side.
+        const res = await fetch("/api/capture-task", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: text.trim(),
+            gtd_status: taskGtdStatus,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(
+            (data as Record<string, string>).error || "Failed to add task"
+          );
+        }
+        const data = (await res.json()) as { message?: string };
+        const taskResult: AddToBrainResult = {
+          path: "single",
+          type: "task",
+          message: data.message || "Captured as task",
+        };
+        setResult(taskResult);
+        setText("");
+        setTaskGtdStatus("next");
+        onSuccess?.(taskResult);
+        return;
+      }
+
       const body: Record<string, unknown> = { text: text.trim(), mode };
       if (showJobDetail && dryRun) {
         body.dry_run = true;
@@ -172,8 +214,48 @@ export function AddToBrain({
           className="w-full bg-bg-elevated border border-border rounded-lg px-4 py-3 text-text-primary placeholder-text-muted focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30 transition resize-y"
         />
 
-        {/* Advanced mode control */}
-        {showModeControl && (
+        {/* Capture-as-task toggle (openbrain spec.md § Dashboard) */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={captureAsTask}
+              onChange={(e) => setCaptureAsTask(e.target.checked)}
+              className="rounded border-border text-violet focus:ring-violet/30"
+            />
+            Capture as task
+          </label>
+
+          {captureAsTask && (
+            <div
+              className="flex gap-1.5 flex-wrap items-center"
+              role="radiogroup"
+              aria-label="GTD status"
+            >
+              <span className="text-xs text-text-muted mr-1">Status:</span>
+              {GTD_CAPTURE_STATUSES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={taskGtdStatus === s}
+                  onClick={() => setTaskGtdStatus(s)}
+                  className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                    taskGtdStatus === s
+                      ? "bg-violet-surface text-violet border-violet/30"
+                      : "bg-bg-surface text-text-secondary border-border hover:border-text-muted"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Advanced mode control (Auto-mode only — capture_task is
+            always a single-thought capture) */}
+        {showModeControl && !captureAsTask && (
           <div>
             <button
               type="button"
@@ -237,7 +319,7 @@ export function AddToBrain({
         )}
 
         <div className="flex items-center justify-between">
-          {mode !== "auto" && (
+          {!captureAsTask && mode !== "auto" && (
             <span className="text-xs text-text-muted">
               Mode: {MODES.find((m) => m.value === mode)?.label}
             </span>
@@ -248,7 +330,11 @@ export function AddToBrain({
               disabled={submitting || !text.trim()}
               className="px-5 py-2.5 bg-violet hover:bg-violet-dim text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? "Adding..." : "Add to Brain"}
+              {submitting
+                ? "Adding..."
+                : captureAsTask
+                  ? "Add Task to Brain"
+                  : "Add to Brain"}
             </button>
           </div>
         </div>

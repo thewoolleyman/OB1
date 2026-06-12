@@ -10,46 +10,120 @@ export interface Thought {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
-  status: string | null;
-  status_updated_at: string | null;
+  /**
+   * Read-response-shape field per openbrain
+   * SPECIFICATION/contracts.md § Read response shape
+   * (= metadata.gtd_status ?? null). Optional so the dashboard
+   * stays tolerant of rows served before the GTD bundle.
+   */
+  gtd_status?: string | null;
 }
 
 // --- Thought type constants ---
 
+/**
+ * THE single canonical type vocabulary, per openbrain
+ * SPECIFICATION/spec.md § Dashboard "Canonical type vocabulary":
+ * every filter, editor, and the Kanban modal MUST derive from this
+ * constant — per-component hardcoded type lists are forbidden.
+ * The six members mirror spec.md § Capture pipeline.
+ */
 export const THOUGHT_TYPES = [
   "task",
   "idea",
-  "observation",
+  "journal",
   "reference",
   "person_note",
-  "decision",
-  "lesson",
   "meeting",
-  "journal",
 ] as const;
 
-/** Only these types participate in the kanban workflow */
-export const KANBAN_TYPES: string[] = ["task", "idea"];
+/**
+ * Only these types participate in the kanban workflow.
+ * ["task"] per spec.md § Dashboard "Kanban view" (was
+ * ["task", "idea"]; ideas live in Triage / Search instead).
+ */
+export const KANBAN_TYPES: string[] = ["task"];
 
-// --- Kanban workflow constants ---
+// --- GTD workflow constants ---
 
-export const KANBAN_STATUSES = ["new", "planning", "active", "review", "done"] as const;
+/**
+ * Kanban columns, left-to-right, mapping one-to-one to
+ * metadata.gtd_status values per spec.md § Dashboard "Kanban
+ * view". `archived` deliberately has no column. These six are
+ * also the "active" enum values offered by the ThoughtActions
+ * change-gtd_status dropdown.
+ */
+export const KANBAN_STATUSES = [
+  "next",
+  "waiting",
+  "soon",
+  "someday",
+  "maybe",
+  "done",
+] as const;
 export type KanbanStatus = (typeof KANBAN_STATUSES)[number];
 
 export const KANBAN_LABELS: Record<KanbanStatus, string> = {
-  new: "New",
-  planning: "Planning",
-  active: "Active",
-  review: "Review",
+  next: "Next",
+  waiting: "Waiting For",
+  soon: "Soon",
+  someday: "Someday",
+  maybe: "Maybe",
   done: "Done",
 };
 
-export const KANBAN_COLORS: Record<KanbanStatus, string> = {
-  new: "slate",
-  planning: "violet",
-  active: "blue",
-  review: "amber",
-  done: "emerald",
+/**
+ * Fail-soft fallback column id for rows whose gtd_status is
+ * unrecognized (out-of-enum). Render-only — never a valid
+ * gtd_status write target.
+ */
+export const KANBAN_FALLBACK_COLUMN = "unrecognized";
+
+/**
+ * gtd_status values offered at capture / promote time. The
+ * workflow-managed values `done` and `archived` MUST NOT be
+ * offered (spec.md § Dashboard).
+ */
+export const GTD_CAPTURE_STATUSES = [
+  "next",
+  "waiting",
+  "soon",
+  "someday",
+  "maybe",
+] as const;
+
+/** gtd_status of a thought, preferring the top-level read-shape field. */
+export function getGtdStatus(t: Thought): string | null {
+  if (typeof t.gtd_status === "string") return t.gtd_status;
+  const m = t.metadata?.gtd_status;
+  return typeof m === "string" ? m : null;
+}
+
+/** metadata.gtd_triaged_at, or null when the thought is untriaged. */
+export function getGtdTriagedAt(t: Thought): string | null {
+  const m = t.metadata?.gtd_triaged_at;
+  return typeof m === "string" ? m : null;
+}
+
+// --- Triage (untriaged tasks + ideas) ---
+
+/** Response of GET /triage/summary per openbrain contracts.md. */
+export interface TriageSummaryResponse {
+  total: number;
+  by_source: Record<string, number>;
+}
+
+/**
+ * Display labels for the known metadata.source values (spec.md
+ * § Dashboard "Triage view" tab vocabulary). Unknown sources MUST
+ * fail soft: render the raw value, never crash or hide the row.
+ */
+export const SOURCE_LABELS: Record<string, string> = {
+  gmail: "Gmail",
+  mcp: "MCP",
+  obsidian: "Obsidian",
+  gdrive: "Drive",
+  slack: "Slack",
 };
 
 export const PRIORITY_LEVELS = [

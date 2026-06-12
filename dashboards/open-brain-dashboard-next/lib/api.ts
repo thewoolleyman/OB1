@@ -83,7 +83,13 @@ export async function fetchThought(
 export async function updateThought(
   apiKey: string,
   id: string,
-  data: { content?: string; type?: string; importance?: number; status?: string | null }
+  data: {
+    content?: string;
+    type?: string;
+    gtd_status?: string;
+    gtd_triaged_at?: string;
+    importance?: number;
+  }
 ): Promise<{ id: string; action: string; message: string }> {
   return apiFetch<{ id: string; action: string; message: string }>(
     apiKey,
@@ -98,28 +104,80 @@ export async function updateThought(
 export async function fetchKanbanThoughts(
   apiKey: string,
   params?: {
-    status?: string;
     exclude_restricted?: boolean;
   }
 ): Promise<Thought[]> {
-  // Fetch tasks and ideas separately (API only supports single type filter)
-  const results: Thought[] = [];
-  for (const thoughtType of ["task", "idea"]) {
-    const sp = new URLSearchParams();
-    sp.set("per_page", "100");
-    sp.set("sort", "importance");
-    sp.set("order", "desc");
-    sp.set("type", thoughtType);
-    if (params?.status) sp.set("status", params.status);
-    if (params?.exclude_restricted !== undefined)
-      sp.set("exclude_restricted", String(params.exclude_restricted));
-    const qs = sp.toString();
-    const data = await apiFetch<BrowseResponse>(apiKey, `/thoughts?${qs}`);
-    results.push(...data.data);
-  }
-  // Re-sort combined results by importance desc
-  results.sort((a, b) => b.importance - a.importance);
-  return results;
+  // Kanban renders only metadata.type = "task" rows per openbrain
+  // spec.md § Dashboard "Kanban view" (KANBAN_TYPES = ["task"]).
+  // gtd_status grouping (and exclusion of untriaged / unrecognized
+  // statuses) is client-side in KanbanBoard.
+  const sp = new URLSearchParams();
+  sp.set("per_page", "100");
+  sp.set("type", "task");
+  if (params?.exclude_restricted !== undefined)
+    sp.set("exclude_restricted", String(params.exclude_restricted));
+  const data = await apiFetch<BrowseResponse>(apiKey, `/thoughts?${sp.toString()}`);
+  return data.data;
+}
+
+// ---------- triage (untriaged tasks + ideas) ----------
+//
+// GET /triage and GET /triage/summary per openbrain
+// SPECIFICATION/contracts.md § open-brain-rest and spec.md
+// § Dashboard "Triage view": thoughts where
+// metadata.gtd_triaged_at IS NULL AND metadata.type ∈ {task, idea}.
+
+export interface TriageListResponse {
+  thoughts: Thought[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function fetchTriageThoughts(
+  apiKey: string,
+  params?: { source?: string; page?: number; pageSize?: number }
+): Promise<TriageListResponse> {
+  const sp = new URLSearchParams();
+  if (params?.source) sp.set("source", params.source);
+  if (params?.page) sp.set("page", String(params.page));
+  if (params?.pageSize) sp.set("pageSize", String(params.pageSize));
+  const qs = sp.toString();
+  const data = await apiFetch<Record<string, unknown>>(
+    apiKey,
+    `/triage${qs ? `?${qs}` : ""}`
+  );
+  // Lenient envelope parse (fail-soft on shape drift): canonical key
+  // is `thoughts`; tolerate the legacy `data` list key.
+  const thoughts = (Array.isArray(data.thoughts)
+    ? data.thoughts
+    : Array.isArray(data.data)
+      ? data.data
+      : []) as Thought[];
+  return {
+    thoughts,
+    total: typeof data.total === "number" ? data.total : thoughts.length,
+    page: typeof data.page === "number" ? data.page : 1,
+    pageSize:
+      typeof data.pageSize === "number"
+        ? data.pageSize
+        : typeof data.per_page === "number"
+          ? data.per_page
+          : thoughts.length,
+  };
+}
+
+export async function fetchTriageSummary(
+  apiKey: string
+): Promise<import("./types").TriageSummaryResponse> {
+  const data = await apiFetch<Record<string, unknown>>(apiKey, "/triage/summary");
+  return {
+    total: typeof data.total === "number" ? data.total : 0,
+    by_source:
+      data.by_source && typeof data.by_source === "object"
+        ? (data.by_source as Record<string, number>)
+        : {},
+  };
 }
 
 export async function fetchDuplicates(

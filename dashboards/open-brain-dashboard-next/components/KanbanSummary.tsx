@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { KanbanStatus } from "@/lib/types";
-import { KANBAN_STATUSES, KANBAN_LABELS } from "@/lib/types";
+import type { KanbanStatus, Thought } from "@/lib/types";
+import { KANBAN_STATUSES, KANBAN_LABELS, getGtdStatus } from "@/lib/types";
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "bg-slate-500/15 text-slate-400 border-slate-500/20",
-  planning: "bg-violet/15 text-violet border-violet/20",
-  active: "bg-blue-500/15 text-blue-400 border-blue-500/20",
-  review: "bg-amber-500/15 text-amber-400 border-amber-500/20",
+  next: "bg-violet/15 text-violet border-violet/20",
+  waiting: "bg-amber-500/15 text-amber-400 border-amber-500/20",
+  soon: "bg-blue-500/15 text-blue-400 border-blue-500/20",
+  someday: "bg-cyan-500/15 text-cyan-400 border-cyan-500/20",
+  maybe: "bg-slate-500/15 text-slate-400 border-slate-500/20",
   done: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
 };
+
+const FALLBACK_COLOR = "bg-slate-500/15 text-slate-400 border-slate-500/20";
 
 export function KanbanSummary() {
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -23,9 +26,12 @@ export function KanbanSummary() {
       .then((data) => {
         const grouped: Record<string, number> = {};
         for (const s of KANBAN_STATUSES) grouped[s] = 0;
-        for (const t of data.thoughts || []) {
-          const status = t.status ?? "new";
-          if (grouped[status] !== undefined) grouped[status]++;
+        for (const t of (data.thoughts || []) as Thought[]) {
+          // Untriaged (no gtd_status) and archived rows are not on
+          // the board, so they don't count here either.
+          const status = getGtdStatus(t);
+          if (status !== null && grouped[status] !== undefined)
+            grouped[status]++;
         }
         setCounts(grouped);
       })
@@ -33,7 +39,10 @@ export function KanbanSummary() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const totalActive = (counts.active || 0) + (counts.planning || 0) + (counts.review || 0);
+  const totalOpen = KANBAN_STATUSES.reduce(
+    (sum, s) => (s === "done" ? sum : sum + (counts[s] || 0)),
+    0
+  );
 
   if (isLoading) {
     return (
@@ -61,7 +70,7 @@ export function KanbanSummary() {
           {KANBAN_STATUSES.map((status) => {
             const count = counts[status] || 0;
             if (count === 0 && status === "done") return null;
-            const colorClass = STATUS_COLORS[status] || STATUS_COLORS.new;
+            const colorClass = STATUS_COLORS[status] || FALLBACK_COLOR;
             return (
               <span
                 key={status}
@@ -73,9 +82,9 @@ export function KanbanSummary() {
             );
           })}
         </div>
-        {totalActive > 0 && (
+        {totalOpen > 0 && (
           <p className="text-xs text-text-muted mt-2">
-            {totalActive} item{totalActive !== 1 ? "s" : ""} in progress
+            {totalOpen} open task{totalOpen !== 1 ? "s" : ""}
           </p>
         )}
       </div>

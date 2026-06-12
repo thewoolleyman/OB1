@@ -3,17 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Thought } from "@/lib/types";
-
-const TYPES = [
-  "idea",
-  "task",
-  "person_note",
-  "reference",
-  "decision",
-  "lesson",
-  "meeting",
-  "journal",
-];
+import { THOUGHT_TYPES } from "@/lib/types";
 
 const IMPORTANCE_OPTIONS = [1, 2, 3, 4, 5];
 
@@ -71,7 +61,7 @@ export function ThoughtEditor({
             defaultValue={thought.type}
             className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-violet"
           >
-            {TYPES.map((t) => (
+            {THOUGHT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>

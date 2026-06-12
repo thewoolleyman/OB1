@@ -3,14 +3,22 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { Thought, KanbanStatus } from "@/lib/types";
-import { KANBAN_STATUSES, KANBAN_LABELS, PRIORITY_LEVELS, getPriorityLevel, THOUGHT_TYPES, KANBAN_TYPES } from "@/lib/types";
+import {
+  KANBAN_STATUSES,
+  KANBAN_LABELS,
+  PRIORITY_LEVELS,
+  getPriorityLevel,
+  THOUGHT_TYPES,
+  KANBAN_TYPES,
+  getGtdStatus,
+} from "@/lib/types";
 import { SourceLink } from "@/components/SourceLink";
 
 interface KanbanCardModalProps {
   thought: Thought;
   onSave: (
     thoughtId: string,
-    updates: { content?: string; status?: string; importance?: number; type?: string }
+    updates: { content?: string; gtd_status?: string; importance?: number; type?: string }
   ) => void;
   onArchive: (thoughtId: string) => void;
   onDelete: (thoughtId: string) => void;
@@ -24,8 +32,9 @@ export function KanbanCardModal({
   onDelete,
   onClose,
 }: KanbanCardModalProps) {
+  const initialStatus = getGtdStatus(thought) ?? "";
   const [content, setContent] = useState(thought.content);
-  const [status, setStatus] = useState(thought.status ?? "new");
+  const [status, setStatus] = useState(initialStatus);
   const [importance, setImportance] = useState(thought.importance);
   const [type, setType] = useState(thought.type);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -34,7 +43,7 @@ export function KanbanCardModal({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasChanges =
     content !== thought.content ||
-    status !== (thought.status ?? "new") ||
+    status !== initialStatus ||
     importance !== thought.importance ||
     type !== thought.type;
 
@@ -81,17 +90,18 @@ export function KanbanCardModal({
   }
 
   function handleSave() {
-    const updates: Record<string, unknown> = {};
+    const updates: {
+      content?: string;
+      gtd_status?: string;
+      importance?: number;
+      type?: string;
+    } = {};
     if (content !== thought.content) updates.content = content;
-    if (status !== (thought.status ?? "new")) updates.status = status;
+    if (status !== initialStatus && status) updates.gtd_status = status;
     if (importance !== thought.importance) updates.importance = importance;
-    if (type !== thought.type) {
-      updates.type = type;
-      // Changing to a non-kanban type removes it from the board
-      if (!KANBAN_TYPES.includes(type)) {
-        updates.status = null;
-      }
-    }
+    // Changing to a non-kanban type removes it from the board
+    // (type ≠ "task" rows never render here).
+    if (type !== thought.type) updates.type = type;
 
     if (Object.keys(updates).length > 0) {
       onSave(thought.id, updates);
@@ -170,6 +180,18 @@ export function KanbanCardModal({
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full bg-bg-hover border border-border rounded-lg px-2.5 py-1.5 text-sm text-text-primary focus:outline-none focus:border-violet/40"
               >
+                {/* Fail-soft: surface an unrecognized / unset
+                    current value rather than silently coercing */}
+                {status !== "" &&
+                  !(KANBAN_STATUSES as readonly string[]).includes(status) &&
+                  status !== "archived" && (
+                    <option value={status}>{status}</option>
+                  )}
+                {status === "" && (
+                  <option value="" disabled>
+                    Set status…
+                  </option>
+                )}
                 {KANBAN_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {KANBAN_LABELS[s as KanbanStatus]}
@@ -242,7 +264,7 @@ export function KanbanCardModal({
         {/* Actions — always visible */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
           <div className="flex items-center gap-3">
-            {thought.status === "done" && (
+            {getGtdStatus(thought) === "done" && (
               <button
                 type="button"
                 onClick={() => {

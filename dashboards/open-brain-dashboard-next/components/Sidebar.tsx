@@ -5,9 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RestrictedToggle } from "@/components/RestrictedToggle";
 
+// Nav order per openbrain spec.md § Dashboard "Sidebar navigation":
+// Dashboard, Thoughts, Triage, Workflow (Kanban), Agent Memory,
+// Search, Audit, Duplicates, Add.
 const nav = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/thoughts", label: "Thoughts", icon: ThoughtsIcon },
+  { href: "/triage", label: "Triage", icon: TriageIcon },
   { href: "/kanban", label: "Workflow", icon: KanbanIcon },
   { href: "/agent-memory", label: "Agent Memory", icon: MemoryIcon },
   { href: "/search", label: "Search", icon: SearchIcon },
@@ -138,6 +142,15 @@ function DuplicatesIcon({ active }: { active: boolean }) {
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className={active ? "text-violet" : "text-text-muted"}>
       <rect x="1" y="3" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
       <rect x="6" y="4" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" fill="var(--bg-surface)" />
+    </svg>
+  );
+}
+
+function TriageIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className={active ? "text-violet" : "text-text-muted"}>
+      <path d="M1.5 10.5h4l1.5 2h4l1.5-2h4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M3.5 4.5h11l2 6v4a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-4l2-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   );
 }

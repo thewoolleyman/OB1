@@ -4,17 +4,22 @@ import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Thought, KanbanStatus } from "@/lib/types";
-import { KANBAN_LABELS } from "@/lib/types";
+import { KANBAN_LABELS, KANBAN_FALLBACK_COLUMN } from "@/lib/types";
 import { KanbanCard } from "@/components/KanbanCard";
 
+// GTD column accents (gtd_status keyed) + the fail-soft fallback
+// column for unrecognized statuses.
 const COLUMN_ACCENT: Record<string, string> = {
-  new: "border-t-slate-500",
-  planning: "border-t-violet",
-  active: "border-t-blue-500",
-  review: "border-t-amber-500",
+  next: "border-t-violet",
+  waiting: "border-t-amber-500",
+  soon: "border-t-blue-500",
+  someday: "border-t-cyan-500",
+  maybe: "border-t-slate-500",
   done: "border-t-emerald-500",
-  archived: "border-t-slate-600",
+  [KANBAN_FALLBACK_COLUMN]: "border-t-slate-600",
 };
+
+const FALLBACK_ACCENT = "border-t-slate-600";
 
 function collapseKey(status: string): string {
   return `kanban-${status}-collapsed`;
@@ -47,8 +52,10 @@ export function KanbanColumn({
   }
 
   const { setNodeRef, isOver } = useDroppable({ id: status });
-  const accentClass = COLUMN_ACCENT[status] || COLUMN_ACCENT.new;
-  const label = KANBAN_LABELS[status as KanbanStatus] ?? status;
+  const accentClass = COLUMN_ACCENT[status] || FALLBACK_ACCENT;
+  const label =
+    KANBAN_LABELS[status as KanbanStatus] ??
+    (status === KANBAN_FALLBACK_COLUMN ? "Other" : status);
 
   // Collapsed: slim vertical bar with rotated label
   if (isCollapsed) {

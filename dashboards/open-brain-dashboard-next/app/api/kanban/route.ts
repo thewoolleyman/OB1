@@ -1,9 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireSession, AuthError } from "@/lib/auth";
 import { getSession } from "@/lib/auth";
 import { fetchKanbanThoughts } from "@/lib/api";
 
-export async function GET(request: NextRequest) {
+// Kanban data per openbrain spec.md § Dashboard "Kanban view":
+// type = "task" rows only. gtd_status grouping (and the exclusion
+// of untriaged / archived / unrecognized statuses) happens
+// client-side in KanbanBoard / KanbanSummary.
+
+export async function GET() {
   let apiKey: string;
   try {
     ({ apiKey } = await requireSession());
@@ -15,16 +20,9 @@ export async function GET(request: NextRequest) {
 
   const session = await getSession();
   const excludeRestricted = session.restrictedUnlocked !== true;
-  const includeArchived =
-    request.nextUrl.searchParams.get("archived") === "true";
-
-  const statusFilter = includeArchived
-    ? "new,planning,active,review,done,archived"
-    : "new,planning,active,review,done";
 
   try {
     const thoughts = await fetchKanbanThoughts(apiKey, {
-      status: statusFilter,
       exclude_restricted: excludeRestricted,
     });
     return NextResponse.json({ thoughts });

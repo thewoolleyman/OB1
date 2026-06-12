@@ -5,19 +5,9 @@ import { TypeBadge } from "@/components/ThoughtCard";
 import { SourceLink } from "@/components/SourceLink";
 import { ThoughtsFilter } from "@/components/ThoughtsFilter";
 import { FormattedDate } from "@/components/FormattedDate";
+import { THOUGHT_TYPES } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-const TYPES = [
-  "idea",
-  "task",
-  "person_note",
-  "reference",
-  "decision",
-  "lesson",
-  "meeting",
-  "journal",
-];
 
 export default async function ThoughtsPage({
   searchParams,
@@ -79,7 +69,7 @@ export default async function ThoughtsPage({
 
       {/* Filters */}
       <ThoughtsFilter
-        types={TYPES}
+        types={[...THOUGHT_TYPES]}
         currentType={type}
         currentSource={source_type}
         currentImportance={importance_min}

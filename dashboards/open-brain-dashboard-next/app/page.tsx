@@ -1,6 +1,7 @@
 import { fetchStats, fetchThoughts } from "@/lib/api";
 import { requireSessionOrRedirect, getSession } from "@/lib/auth";
 import { StatsWidget } from "@/components/StatsWidget";
+import { TriageSummary } from "@/components/TriageSummary";
 import { KanbanSummary } from "@/components/KanbanSummary";
 import { ThoughtCard } from "@/components/ThoughtCard";
 import { AddToBrain } from "@/components/AddToBrain";
@@ -44,6 +45,10 @@ export default async function DashboardPage() {
       </div>
 
       <StatsWidget stats={stats} />
+
+      {/* Between StatsWidget and KanbanSummary per openbrain
+          spec.md § Dashboard "TriageSummary on home page" */}
+      <TriageSummary />
 
       <KanbanSummary />
 

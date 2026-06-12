@@ -12,12 +12,15 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import type { Thought } from "@/lib/types";
-import { KANBAN_STATUSES, KANBAN_TYPES } from "@/lib/types";
+import {
+  KANBAN_STATUSES,
+  KANBAN_TYPES,
+  KANBAN_FALLBACK_COLUMN,
+  getGtdStatus,
+} from "@/lib/types";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCard } from "@/components/KanbanCard";
 import { KanbanCardModal } from "@/components/KanbanCardModal";
-
-const AUTO_ARCHIVE_DAYS = 30;
 
 async function apiUpdateKanban(
   thoughtId: string,
@@ -38,7 +41,6 @@ export function KanbanBoard() {
   const [thoughts, setThoughts] = useState<Thought[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
   const [selectedThought, setSelectedThought] = useState<Thought | null>(null);
   const [activeDragThought, setActiveDragThought] = useState<Thought | null>(null);
   const previousThoughts = useRef<Thought[]>([]);
@@ -51,9 +53,7 @@ export function KanbanBoard() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch(
-        `/api/kanban${showArchived ? "?archived=true" : ""}`
-      );
+      const res = await fetch("/api/kanban");
       if (!res.ok) throw new Error("Failed to load kanban data");
       const data = await res.json();
       setThoughts(data.thoughts || []);
@@ -62,41 +62,31 @@ export function KanbanBoard() {
     } finally {
       setIsLoading(false);
     }
-  }, [showArchived]);
+  }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Group thoughts by status, with auto-archive for old done items
+  // Group thoughts by gtd_status per openbrain spec.md § Dashboard
+  // "Kanban view":
+  // - gtd_status absent → NOT on the board (lives in the Triage view)
+  // - gtd_status = "archived" → no column, never rendered here
+  // - unrecognized gtd_status → generic fallback column (fail-soft)
   function groupByStatus(): Record<string, Thought[]> {
     const groups: Record<string, Thought[]> = {};
     for (const s of KANBAN_STATUSES) groups[s] = [];
-    if (showArchived) groups["archived"] = [];
+    groups[KANBAN_FALLBACK_COLUMN] = [];
 
     for (const t of thoughts) {
-      const thoughtStatus = t.status ?? "new";
+      const status = getGtdStatus(t);
+      if (status === null) continue; // untriaged — Triage view's job
+      if (status === "archived") continue; // archived has no column
 
-      // Auto-archive: done items older than 30 days
-      if (
-        thoughtStatus === "done" &&
-        t.status_updated_at &&
-        Date.now() - new Date(t.status_updated_at).getTime() >
-          AUTO_ARCHIVE_DAYS * 24 * 60 * 60 * 1000
-      ) {
-        if (showArchived) groups["archived"].push(t);
-        continue;
-      }
-
-      if (thoughtStatus === "archived") {
-        if (showArchived) groups["archived"].push(t);
-        continue;
-      }
-
-      if (groups[thoughtStatus]) {
-        groups[thoughtStatus].push(t);
+      if (groups[status]) {
+        groups[status].push(t);
       } else {
-        groups["new"].push(t);
+        groups[KANBAN_FALLBACK_COLUMN].push(t);
       }
     }
     return groups;
@@ -115,22 +105,22 @@ export function KanbanBoard() {
     const thoughtId = String(active.id);
     const newStatus = over.id as string;
 
-    // Find which column the thought is currently in
+    // The fallback column is render-only — never a write target.
+    if (!(KANBAN_STATUSES as readonly string[]).includes(newStatus)) return;
+
     const thought = thoughts.find((t) => t.id === thoughtId);
-    if (!thought || thought.status === newStatus) return;
+    if (!thought || getGtdStatus(thought) === newStatus) return;
 
     // Optimistic update
     previousThoughts.current = [...thoughts];
     setThoughts((prev) =>
       prev.map((t) =>
-        t.id === thoughtId
-          ? { ...t, status: newStatus, status_updated_at: new Date().toISOString() }
-          : t
+        t.id === thoughtId ? { ...t, gtd_status: newStatus } : t
       )
     );
 
     // API call in background
-    apiUpdateKanban(thoughtId, { status: newStatus }).catch(() => {
+    apiUpdateKanban(thoughtId, { gtd_status: newStatus }).catch(() => {
       // Revert on failure
       setThoughts(previousThoughts.current);
       setError("Failed to update status. Reverted.");
@@ -155,18 +145,19 @@ export function KanbanBoard() {
     }
   }
 
+  // gtd_status = "archived" is workflow-managed: the board is the
+  // surface that sets it, but archived rows have no column and
+  // disappear from the board (spec.md § Dashboard "Kanban view").
   async function handleArchive(thoughtId: string) {
     previousThoughts.current = [...thoughts];
     setThoughts((prev) =>
       prev.map((t) =>
-        t.id === thoughtId
-          ? { ...t, status: "archived", status_updated_at: new Date().toISOString() }
-          : t
+        t.id === thoughtId ? { ...t, gtd_status: "archived" } : t
       )
     );
 
     try {
-      await apiUpdateKanban(thoughtId, { status: "archived" });
+      await apiUpdateKanban(thoughtId, { gtd_status: "archived" });
     } catch {
       setThoughts(previousThoughts.current);
       setError("Failed to archive. Reverted.");
@@ -206,12 +197,9 @@ export function KanbanBoard() {
       setThoughts((prev) => prev.filter((t) => t.id !== thoughtId));
     } else {
       setThoughts((prev) =>
-        prev.map((t) => {
-          if (t.id !== thoughtId) return t;
-          const updated = { ...t, ...updates };
-          if (updates.status) updated.status_updated_at = new Date().toISOString();
-          return updated as Thought;
-        })
+        prev.map((t) =>
+          t.id === thoughtId ? ({ ...t, ...updates } as Thought) : t
+        )
       );
     }
 
@@ -251,9 +239,12 @@ export function KanbanBoard() {
   }
 
   const grouped = groupByStatus();
-  const columns = showArchived
-    ? [...KANBAN_STATUSES, "archived" as const]
-    : [...KANBAN_STATUSES];
+  // Fail-soft: the fallback column renders only when an
+  // out-of-enum gtd_status actually exists.
+  const columns: string[] =
+    grouped[KANBAN_FALLBACK_COLUMN].length > 0
+      ? [...KANBAN_STATUSES, KANBAN_FALLBACK_COLUMN]
+      : [...KANBAN_STATUSES];
 
   return (
     <>
@@ -265,18 +256,7 @@ export function KanbanBoard() {
       )}
 
       {/* Controls */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={(e) => setShowArchived(e.target.checked)}
-              className="rounded border-border"
-            />
-            Show archived
-          </label>
-        </div>
+      <div className="flex items-center justify-end mb-4">
         <button
           type="button"
           onClick={() => {

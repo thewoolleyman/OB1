@@ -12,7 +12,7 @@ export default async function KanbanPage() {
       <div>
         <h1 className="text-2xl font-semibold mb-1">Workflow</h1>
         <p className="text-text-secondary text-sm">
-          Track tasks and ideas through your workflow
+          Track tasks through your GTD workflow
         </p>
       </div>
       <KanbanBoard />
