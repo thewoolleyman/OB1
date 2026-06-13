@@ -177,6 +177,10 @@ export interface DuplicatePair {
   quality_b: number;
   created_a: string;
   created_b: string;
+  // metadata.source of each member (openbrain li-vea6mj, spec v073).
+  // Additive; older API builds that predate the field return undefined.
+  source_a?: string | null;
+  source_b?: string | null;
 }
 
 export interface DuplicatesResponse {
