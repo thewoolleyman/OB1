@@ -23,9 +23,23 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("offset") || "0",
     10
   );
+  // Optional comma-separated per-source filter (openbrain li-vea6mj,
+  // spec v073). Forwarded only when non-empty; omitted = all sources.
+  const sourcesParam = request.nextUrl.searchParams.get("sources");
+  const sources = sourcesParam
+    ? sourcesParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : undefined;
 
   try {
-    const data = await fetchDuplicates(apiKey, { threshold, limit, offset });
+    const data = await fetchDuplicates(apiKey, {
+      threshold,
+      limit,
+      offset,
+      sources,
+    });
     return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json(

@@ -178,12 +178,21 @@ export async function fetchTriageSummary(
 
 export async function fetchDuplicates(
   apiKey: string,
-  params?: { threshold?: number; limit?: number; offset?: number }
+  params?: {
+    threshold?: number;
+    limit?: number;
+    offset?: number;
+    sources?: string[];
+  }
 ): Promise<import("./types").DuplicatesResponse> {
   const sp = new URLSearchParams();
   if (params?.threshold) sp.set("threshold", String(params.threshold));
   if (params?.limit) sp.set("limit", String(params.limit));
   if (params?.offset !== undefined) sp.set("offset", String(params.offset));
+  // Per-source filter (openbrain li-vea6mj, spec v073). Omitted/empty =
+  // all sources, so we only send it when at least one source is named.
+  if (params?.sources && params.sources.length > 0)
+    sp.set("sources", params.sources.join(","));
   const qs = sp.toString();
   return apiFetch(apiKey, `/duplicates${qs ? `?${qs}` : ""}`);
 }

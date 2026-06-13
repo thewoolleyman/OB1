@@ -8,6 +8,18 @@ import type { DuplicatePair, DuplicateResolution } from "@/lib/types";
 
 const PER_PAGE = 30;
 
+// Per-source filter (openbrain li-vea6mj, spec v073). The checkbox set is
+// derived from the data, the default is every source EXCEPT gmail (the
+// default lives here in the dashboard, NOT in the GET /duplicates
+// contract, whose no-`sources` default stays all-sources), and the
+// operator's selection persists across visits in localStorage.
+const SOURCES_STORAGE_KEY = "ob-duplicates-selected-sources";
+// Discover the full source universe at the most permissive band so every
+// source that has any near-duplicate gets a checkbox — including gmail,
+// which is unchecked by default but MUST remain re-checkable.
+const UNIVERSE_THRESHOLD = 0.8;
+const UNIVERSE_LIMIT = 200;
+
 // Tracks resolution for a pair — "keep_a" = delete B, "keep_b" = delete A,
 // "keep_both" = persistently dismiss (recorded server-side; the pair is
 // permanently excluded from GET /duplicates — openbrain li-xyuon6)
@@ -62,6 +74,30 @@ export default function DuplicatesPage() {
 
   const selectedCount = Object.keys(selections).length;
 
+  // Per-source filter state (openbrain li-vea6mj, spec v073).
+  // `sourceUniverse` is the data-derived checkbox set (with per-source
+  // pair counts); `selectedSources` is null until initialized from
+  // localStorage / the all-except-gmail default, then the active set sent
+  // to GET /duplicates. Filtering is display-only — it changes which
+  // pairs the server returns, never any thoughts row.
+  const [sourceUniverse, setSourceUniverse] = useState<
+    { source: string; count: number }[]
+  >([]);
+  const [selectedSources, setSelectedSources] = useState<string[] | null>(
+    null
+  );
+
+  const toggleSource = (source: string) => {
+    setOffset(0);
+    clearSelections();
+    setSelectedSources((prev) => {
+      const base = prev ?? [];
+      return base.includes(source)
+        ? base.filter((s) => s !== source)
+        : [...base, source];
+    });
+  };
+
   const processBatch = async () => {
     setBatchProcessing(true);
     setError(null);
@@ -109,10 +145,26 @@ export default function DuplicatesPage() {
     setLoading(true);
     setPairs([]);
     setError(null);
+    // An empty selection means the operator unchecked every source — show
+    // nothing rather than sending an empty `sources` param (which the
+    // endpoint treats as "all sources").
+    if (selectedSources !== null && selectedSources.length === 0) {
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetch(
-        `/api/duplicates?threshold=${threshold}&limit=${PER_PAGE}&offset=${offset}`
-      );
+      const sp = new URLSearchParams({
+        threshold: String(threshold),
+        limit: String(PER_PAGE),
+        offset: String(offset),
+      });
+      // While selectedSources is still null (filter not yet initialized)
+      // send no `sources` param, so the first paint shows all sources
+      // immediately — same latency as before; the all-except-gmail
+      // default applies once universe discovery resolves.
+      if (selectedSources !== null)
+        sp.set("sources", selectedSources.join(","));
+      const res = await fetch(`/api/duplicates?${sp.toString()}`);
       if (!res.ok) throw new Error("Failed to load");
       const data = await res.json();
       setPairs(data.pairs ?? []);
@@ -121,11 +173,76 @@ export default function DuplicatesPage() {
     } finally {
       setLoading(false);
     }
-  }, [threshold, offset]);
+  }, [threshold, offset, selectedSources]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Persist the selection whenever it changes (once initialized).
+  useEffect(() => {
+    if (selectedSources === null) return;
+    try {
+      localStorage.setItem(
+        SOURCES_STORAGE_KEY,
+        JSON.stringify(selectedSources)
+      );
+    } catch {
+      // Best-effort; persistence failure must not break filtering.
+    }
+  }, [selectedSources]);
+
+  // Discover the full source universe once, from an unfiltered fetch at
+  // the broadest threshold, so the checkbox set is derived from the data
+  // and a newly-ingested source appears automatically. Runs in the
+  // background; the displayed list does not block on it.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Restore the operator's saved selection first (runs synchronously
+      // on mount, before the discovery fetch is awaited).
+      try {
+        const saved = localStorage.getItem(SOURCES_STORAGE_KEY);
+        if (saved) {
+          const arr = JSON.parse(saved);
+          if (Array.isArray(arr) && !cancelled)
+            setSelectedSources(arr.filter((s) => typeof s === "string"));
+        }
+      } catch {
+        // Corrupt/blocked localStorage falls back to the discovery default.
+      }
+      try {
+        const res = await fetch(
+          `/api/duplicates?threshold=${UNIVERSE_THRESHOLD}&limit=${UNIVERSE_LIMIT}&offset=0`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const counts = new Map<string, number>();
+        for (const p of (data.pairs ?? []) as DuplicatePair[]) {
+          const inPair = new Set<string>();
+          if (p.source_a) inPair.add(p.source_a);
+          if (p.source_b) inPair.add(p.source_b);
+          for (const s of inPair) counts.set(s, (counts.get(s) ?? 0) + 1);
+        }
+        if (cancelled) return;
+        const universe = [...counts.entries()]
+          .map(([source, count]) => ({ source, count }))
+          .sort((a, b) => b.count - a.count || a.source.localeCompare(b.source));
+        setSourceUniverse(universe);
+        // Default selection (all sources except gmail) only when the
+        // operator has no saved preference yet.
+        setSelectedSources((prev) =>
+          prev ?? universe.map((u) => u.source).filter((s) => s !== "gmail")
+        );
+      } catch {
+        // Universe discovery is best-effort; without it the checkbox row
+        // is hidden and the list shows all sources (selectedSources null).
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const resolve = async (action: Selection, pair: DuplicatePair) => {
     const key = `${pair.thought_id_a}-${pair.thought_id_b}`;
@@ -212,6 +329,38 @@ export default function DuplicatesPage() {
         </div>
       </div>
 
+      {/* Per-source filter row (openbrain li-vea6mj, spec v073) — derived
+          from the data, default all-except-gmail, persisted in
+          localStorage. Display-only: it changes which pairs load, never a
+          thoughts row. */}
+      {sourceUniverse.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-text-muted text-xs mr-1">Sources</span>
+          {sourceUniverse.map(({ source, count }) => {
+            const checked = selectedSources?.includes(source) ?? false;
+            return (
+              <label
+                key={source}
+                className={`flex items-center gap-1.5 cursor-pointer px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
+                  checked
+                    ? "text-violet border-violet/30 bg-violet-surface"
+                    : "text-text-muted border-border hover:bg-bg-hover"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleSource(source)}
+                  className="accent-violet"
+                />
+                {source}
+                <span className="text-text-muted font-mono">{count}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+
       {/* Batch action toolbar */}
       {selectedCount > 0 && (() => {
         const deleteCount = Object.values(selections).filter(s => s === "keep_a" || s === "keep_b").length;
@@ -248,7 +397,9 @@ export default function DuplicatesPage() {
 
       {pairs.length === 0 && !loading && (
         <div className="text-text-muted text-sm py-12 text-center">
-          No duplicates at this threshold — this band is clean. Lower the threshold to review weaker matches.
+          {selectedSources !== null && selectedSources.length === 0
+            ? "No sources selected — check a source above to review its duplicates."
+            : "No duplicates at this threshold — this band is clean. Lower the threshold to review weaker matches."}
         </div>
       )}
 
