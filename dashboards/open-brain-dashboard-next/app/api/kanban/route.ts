@@ -3,10 +3,15 @@ import { requireSession, AuthError } from "@/lib/auth";
 import { getSession } from "@/lib/auth";
 import { fetchKanbanThoughts } from "@/lib/api";
 
-// Kanban data per openbrain spec.md § Dashboard "Kanban view":
-// type = "task" rows only. gtd_status grouping (and the exclusion
-// of untriaged / archived / unrecognized statuses) happens
-// client-side in KanbanBoard / KanbanSummary.
+// Kanban (Workflow) data per openbrain spec.md § Dashboard. The
+// board consumes two row sets, merged by fetchKanbanThoughts:
+//   - triaged `type=task` rows → the gtd_status columns
+//     (Next … Done), grouped client-side in KanbanBoard /
+//     KanbanSummary (archived / unrecognized handled there too);
+//   - untriaged `task`/`idea` rows (gtd_triaged_at IS NULL) → the
+//     leftmost universal-Inbox "Workflow triage lane". They carry
+//     no gtd_status, so the column-grouping logic skips them; the
+//     Inbox-lane UI selects them via getGtdTriagedAt(t) === null.
 
 export async function GET() {
   let apiKey: string;

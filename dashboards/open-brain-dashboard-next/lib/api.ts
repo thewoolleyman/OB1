@@ -103,17 +103,53 @@ export async function fetchKanbanThoughts(
     exclude_restricted?: boolean;
   }
 ): Promise<Thought[]> {
-  // Kanban renders only metadata.type = "task" rows per openbrain
-  // spec.md § Dashboard "Kanban view" (KANBAN_TYPES = ["task"]).
-  // gtd_status grouping (and exclusion of untriaged / unrecognized
-  // statuses) is client-side in KanbanBoard.
-  const sp = new URLSearchParams();
-  sp.set("per_page", "100");
-  sp.set("type", "task");
+  // The Workflow (Kanban) board consumes two row sets per openbrain
+  // spec.md § Dashboard:
+  //
+  //   1. Triaged `type=task` rows — grouped into the gtd_status
+  //      columns (Next … Done). gtd_status grouping (and exclusion
+  //      of unrecognized statuses) is client-side in KanbanBoard.
+  //   2. Untriaged `task`/`idea` rows (metadata.gtd_triaged_at IS
+  //      NULL) — these feed the leftmost universal-Inbox lane
+  //      ("Workflow triage lane"). They carry no gtd_status, so the
+  //      existing column-grouping logic in KanbanBoard /
+  //      KanbanSummary skips them; the Inbox-lane UI (li-2inwx3)
+  //      selects them via getGtdTriagedAt(t) === null.
+  //
+  // Both are merged into one Thought[] and de-duplicated by id (an
+  // untriaged native task appears in both fetches). The triaged set
+  // is sorted by activity_date desc — the recency field that
+  // replaced the removed legacy `importance` sort (spec.md §
+  // Dashboard "Unified query controls"; the `?sort=importance`
+  // option is REMOVED per contracts.md § open-brain-rest). Rows
+  // without an activity_date fall through to the backend's
+  // created_at-descending default ordering.
+  const tasksSp = new URLSearchParams();
+  tasksSp.set("per_page", "100");
+  tasksSp.set("type", "task");
+  tasksSp.set("sort", "activity_date");
+  tasksSp.set("order", "desc");
   if (params?.exclude_restricted !== undefined)
-    sp.set("exclude_restricted", String(params.exclude_restricted));
-  const data = await apiFetch<BrowseResponse>(apiKey, `/thoughts?${sp.toString()}`);
-  return data.data;
+    tasksSp.set("exclude_restricted", String(params.exclude_restricted));
+
+  const tasks = await apiFetch<BrowseResponse>(
+    apiKey,
+    `/thoughts?${tasksSp.toString()}`
+  );
+
+  // Untriaged task/idea Inbox set via GET /triage (membership owned
+  // by the backend: gtd_triaged_at IS NULL AND type ∈ {task, idea}),
+  // sorted by the same activity_date recency the board uses.
+  const inbox = await fetchTriageThoughts(apiKey, {
+    sort: "activity_date",
+    order: "desc",
+    pageSize: 100,
+  });
+
+  const byId = new Map<string, Thought>();
+  for (const t of tasks.data) byId.set(t.id, t);
+  for (const t of inbox.thoughts) if (!byId.has(t.id)) byId.set(t.id, t);
+  return [...byId.values()];
 }
 
 // ---------- triage (untriaged tasks + ideas) ----------
@@ -132,12 +168,23 @@ export interface TriageListResponse {
 
 export async function fetchTriageThoughts(
   apiKey: string,
-  params?: { source?: string; page?: number; pageSize?: number }
+  params?: {
+    source?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: string;
+    order?: string;
+  }
 ): Promise<TriageListResponse> {
   const sp = new URLSearchParams();
   if (params?.source) sp.set("source", params.source);
   if (params?.page) sp.set("page", String(params.page));
   if (params?.pageSize) sp.set("pageSize", String(params.pageSize));
+  // Shared query-control sort/order (open-brain-rest applies it on
+  // top of the untriaged membership gate). Used by the Workflow
+  // Inbox lane to match the board's activity_date recency ordering.
+  if (params?.sort) sp.set("sort", params.sort);
+  if (params?.order) sp.set("order", params.order);
   const qs = sp.toString();
   const data = await apiFetch<Record<string, unknown>>(
     apiKey,
