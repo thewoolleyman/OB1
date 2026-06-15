@@ -85,6 +85,14 @@ export async function updateThought(
     type?: string;
     gtd_status?: string;
     gtd_triaged_at?: string;
+    /**
+     * GTD Inbox lifecycle marker per openbrain SPECIFICATION
+     * (Inbox dismiss): PUT /thought/:id with { inbox_state:
+     * "dismissed" } moves a source doc out of the Inbox without
+     * creating a task. For a Gmail source this also triggers the
+     * server-side label reconcile automatically.
+     */
+    inbox_state?: string;
   }
 ): Promise<{ id: string; action: string; message: string }> {
   return apiFetch<{ id: string; action: string; message: string }>(
@@ -95,6 +103,40 @@ export async function updateThought(
       body: JSON.stringify(data),
     }
   );
+}
+
+// ---------- task-from-source (GTD: task references a source doc) ----------
+//
+// POST /task-from-source on open-brain-rest. Per the openbrain GTD
+// redesign a source document (Gmail/Obsidian/Drive thought) is
+// supporting material, never a task: creating a task makes a SEPARATE
+// type=task record that references the source, and the source doc
+// stays put with metadata.inbox_state = "promoted". The endpoint does
+// all of that atomically. Authenticated with the session's x-brain-key
+// like every other mutation here.
+//
+// Body: { supporting_thought_ids: string[] (UUIDs, required),
+//         gtd_status?: "next"|"waiting"|"soon"|"someday"|"maybe"
+//                      (default "next"),
+//         content?: string (task title/text; server derives a stub
+//                           from the source when omitted) }.
+// Returns the created task row; a 200 means an existing thread-task was
+// returned (idempotent).
+
+export interface TaskFromSourcePayload {
+  supporting_thought_ids: string[];
+  gtd_status?: string;
+  content?: string;
+}
+
+export async function createTaskFromSource(
+  apiKey: string,
+  payload: TaskFromSourcePayload
+): Promise<Thought> {
+  return apiFetch<Thought>(apiKey, "/task-from-source", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function fetchKanbanThoughts(
