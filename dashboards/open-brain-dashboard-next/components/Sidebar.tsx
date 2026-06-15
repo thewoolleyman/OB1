@@ -6,12 +6,13 @@ import { usePathname } from "next/navigation";
 import { RestrictedToggle } from "@/components/RestrictedToggle";
 
 // Nav order per openbrain spec.md § Dashboard "Sidebar navigation":
-// Dashboard, Thoughts, Triage, Workflow (Kanban), Agent Memory,
-// Search, Audit, Duplicates, Add.
+// Dashboard, Thoughts, Inbox, Workflow (Kanban), Agent Memory,
+// Search, Audit, Duplicates, Add. The universal-GTD Inbox keeps its
+// /triage route; only the visible label changed (Triage → Inbox).
 const nav = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/thoughts", label: "Thoughts", icon: ThoughtsIcon },
-  { href: "/triage", label: "Triage", icon: TriageIcon },
+  { href: "/triage", label: "Inbox", icon: TriageIcon },
   { href: "/kanban", label: "Workflow", icon: KanbanIcon },
   { href: "/agent-memory", label: "Agent Memory", icon: MemoryIcon },
   { href: "/search", label: "Search", icon: SearchIcon },

@@ -30,6 +30,7 @@ export async function PUT(
       type?: string;
       gtd_status?: string;
       gtd_triaged_at?: string;
+      inbox_state?: string;
     } = {};
     if (typeof body.content === "string") updates.content = body.content;
     if (typeof body.type === "string") updates.type = body.type;
@@ -37,6 +38,10 @@ export async function PUT(
       updates.gtd_status = body.gtd_status;
     if (typeof body.gtd_triaged_at === "string")
       updates.gtd_triaged_at = body.gtd_triaged_at;
+    // Inbox dismiss relays inbox_state (e.g. "dismissed") through to
+    // PUT /thought/:id; out-of-enum values are rejected upstream.
+    if (typeof body.inbox_state === "string")
+      updates.inbox_state = body.inbox_state;
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
         { error: "No fields to update" },

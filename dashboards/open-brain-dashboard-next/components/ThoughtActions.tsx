@@ -10,26 +10,35 @@ import {
   getGtdStatus,
   getGtdTriagedAt,
 } from "@/lib/types";
+import { CreateTaskModal } from "@/components/CreateTaskModal";
 
 // Per-thought action affordances per openbrain
-// SPECIFICATION/spec.md § Dashboard "ThoughtActions component":
+// SPECIFICATION/spec.md § Dashboard "ThoughtActions component".
 //
-// - Promote to task — when type ≠ "task". Sets type = "task",
-//   gtd_status (inline picker over the capture statuses, default
-//   "next"), gtd_triaged_at = now().
-// - Mark as not actionable — when gtd_triaged_at IS NULL and
-//   type ∈ {task, idea}. For ideas: stamps gtd_triaged_at AND
-//   demotes type idea → journal. For tasks: stamps only
-//   gtd_triaged_at (mis-captured tasks remain tasks for posterity).
-// - Change gtd_status — when type = "task". Dropdown over the 6
-//   active enum values (excludes the workflow-managed "archived").
-//   When the task is still untriaged, choosing a status IS the
-//   triage decision, so gtd_triaged_at is stamped alongside.
-// - Edit — always (links to the thought detail editor).
-// - Delete — always, with confirmation.
+// The GTD redesign treats a source document as supporting material,
+// never a task. On the "triage" surface (the universal Inbox), the
+// affordances therefore are:
 //
-// All mutations go through the session-gated /api/thoughts/[id]
-// proxy → open-brain-rest PUT/DELETE /thought/:id.
+// - Create task — opens CreateTaskModal, which POSTs
+//   /api/task-from-source. That atomically creates a SEPARATE
+//   type=task record referencing the source and stamps the source
+//   metadata.inbox_state = "promoted" (the source doc stays put). On
+//   success the card shows a "✓ promoted" indicator and refetches.
+// - Not actionable (dismiss) — PUT /thought/:id with
+//   { inbox_state: "dismissed" }; the source leaves the Inbox without
+//   becoming a task. For a Gmail source this triggers the server-side
+//   label reconcile automatically (nothing for the dashboard to do).
+// - Edit — links to the thought detail editor.
+// - Delete — with confirmation.
+//
+// On every OTHER surface (detail, card, search, kanban) the legacy
+// in-place affordances remain: Promote-to-task (sets type=task +
+// gtd_status + gtd_triaged_at), Mark-not-actionable (stamps
+// gtd_triaged_at, demoting idea→journal), and the change-gtd_status
+// dropdown for existing tasks.
+//
+// All mutations go through the session-gated /api/thoughts/[id] or
+// /api/task-from-source proxy → open-brain-rest.
 
 export type ThoughtActionsSurface =
   | "triage"
@@ -65,13 +74,22 @@ export function ThoughtActions({ thought, surface }: ThoughtActionsProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [promoted, setPromoted] = useState(false);
 
   const gtdStatus = getGtdStatus(thought);
   const triagedAt = getGtdTriagedAt(thought);
   const isTask = thought.type === "task";
-  const showPromote = !isTask;
+  // The universal-GTD Inbox surface uses the source-doc model:
+  // Create-task (modal → /task-from-source) and dismiss
+  // (inbox_state). Every other surface keeps the legacy in-place
+  // promote/triage affordances.
+  const isInbox = surface === "triage";
+  const showPromote = !isInbox && !isTask;
   const showNotActionable =
-    triagedAt === null && (thought.type === "task" || thought.type === "idea");
+    !isInbox &&
+    triagedAt === null &&
+    (thought.type === "task" || thought.type === "idea");
 
   async function run(mutate: () => Promise<void>) {
     if (busy) return;
@@ -107,6 +125,13 @@ export function ThoughtActions({ thought, surface }: ThoughtActionsProps) {
     run(() => putThought(thought.id, body));
   }
 
+  // Inbox dismiss: the source doc leaves the Inbox without becoming a
+  // task. For a Gmail source this also triggers the server-side label
+  // reconcile (nothing for the dashboard to do).
+  function handleDismiss() {
+    run(() => putThought(thought.id, { inbox_state: "dismissed" }));
+  }
+
   function handleStatusChange(status: string) {
     const body: Record<string, unknown> = { gtd_status: status };
     if (triagedAt === null) body.gtd_triaged_at = new Date().toISOString();
@@ -137,6 +162,52 @@ export function ThoughtActions({ thought, surface }: ThoughtActionsProps) {
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-1.5">
+        {isInbox &&
+          (promoted ? (
+            <span className="inline-flex items-center gap-1 text-xs text-success">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                className="flex-shrink-0"
+              >
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M5 8l2 2 4-4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Promoted to task
+            </span>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setShowCreateModal(true)}
+              className="px-2 py-1 text-xs rounded-lg border border-violet/30 bg-violet-surface text-violet hover:bg-violet/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Create task from this source"
+              title="Creates a separate task that references this source document"
+            >
+              Create task
+            </button>
+          ))}
+
+        {isInbox && !promoted && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleDismiss}
+            className={buttonClass}
+            title="Dismiss from the Inbox without creating a task"
+          >
+            Not actionable
+          </button>
+        )}
+
         {showPromote && (
           <select
             value=""
@@ -243,6 +314,22 @@ export function ThoughtActions({ thought, surface }: ThoughtActionsProps) {
       </div>
 
       {error && <p className="text-xs text-danger">{error}</p>}
+
+      {showCreateModal && (
+        <CreateTaskModal
+          thought={thought}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            setShowCreateModal(false);
+            setPromoted(true);
+            // Refetch the Inbox list: the source doc now carries
+            // inbox_state="promoted" and the new task lives in
+            // Workflow. The "✓ promoted" indicator covers the moment
+            // before the server-component refetch lands.
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

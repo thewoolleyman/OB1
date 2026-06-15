@@ -45,7 +45,7 @@ export default async function TriagePage({
   } catch (err) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Triage</h1>
+        <h1 className="text-2xl font-semibold">Inbox</h1>
         <p className="text-danger text-sm">
           Failed to load triage data.{" "}
           {err instanceof Error ? err.message : ""}
@@ -79,7 +79,7 @@ export default async function TriagePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold mb-1">Triage</h1>
+        <h1 className="text-2xl font-semibold mb-1">Inbox</h1>
         <p className="text-text-secondary text-sm">
           {summary.total.toLocaleString()} untriaged task
           {summary.total !== 1 ? "s" : ""} and ideas across your inboxes
