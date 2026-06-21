@@ -7,8 +7,12 @@
 // table, source in metadata"). The field names per source are
 // authoritative in SPECIFICATION/contracts.md:
 //
-//   - gmail    → gmail_thread_id  (rendered as
-//                https://mail.google.com/mail/u/0/#inbox/<thread-id>)
+//   - gmail    → gmail_rfc822_msgid (rendered as
+//                https://mail.google.com/mail/u/0/#search/rfc822msgid:<id>,
+//                a folder-independent, mobile-reliable deep link;
+//                openbrain li-jlahbz). Falls back to gmail_thread_id
+//                (#inbox/<thread-id>, desktop-web-only) for rows
+//                ingested before the Message-ID was captured.
 //   - gdrive   → gdrive_web_view_link (the Drive API webViewLink stored
 //                verbatim by the drive ingestor)
 //   - obsidian → vault_path (rendered as obsidian://open?path=<encoded>)
@@ -41,6 +45,28 @@ export function getSourceUrl(
 
   switch (source) {
     case "gmail": {
+      // Prefer a deep link built from the RFC822 Message-ID header
+      // (metadata.gmail_rfc822_msgid; openbrain li-jlahbz). The legacy
+      // `#inbox/<thread-id>` hash-fragment route resolves on desktop
+      // web but the Gmail Android app / mobile web drops the fragment
+      // and lands on the inbox root rather than the message. Gmail's
+      // documented `rfc822msgid:` search operator resolves the message
+      // across desktop and mobile, independent of folder. The header is
+      // stored verbatim with angle brackets; strip them, then encode
+      // the whole `rfc822msgid:<id>` token for the search fragment.
+      const rfc822 = asString(metadata.gmail_rfc822_msgid);
+      if (rfc822) {
+        const bare = rfc822.replace(/^<|>$/g, "");
+        return {
+          url: `https://mail.google.com/mail/u/0/#search/${
+            encodeURIComponent(`rfc822msgid:${bare}`)
+          }`,
+          label: "Open in Gmail",
+        };
+      }
+      // Fallback for rows ingested before gmail_rfc822_msgid capture
+      // (pre-v083 / not yet backfilled): the thread-id URL still opens
+      // the message on desktop web.
       const threadId = asString(metadata.gmail_thread_id);
       if (!threadId) return null;
       return {
