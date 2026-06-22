@@ -16,6 +16,20 @@ export interface Thought {
    * stays tolerant of rows served before the GTD bundle.
    */
   gtd_status?: string | null;
+  /**
+   * Gmail thread-collapse: the number of messages in the thread this
+   * representative row stands in for, per openbrain
+   * SPECIFICATION/contracts.md
+   * #gmail-thread-collapse-on-list-surfaces (v084). The list/search
+   * readers (/inbox, /thoughts, /search) surface it on the
+   * representative row; non-Gmail rows and single-message threads are
+   * 1 (or absent on readers that predate the field). On /search it
+   * counts MATCHED messages of the thread within the result set, not
+   * the thread's global size. Optional so the dashboard stays tolerant
+   * of the single-thought reader (/thought/:id), which does not carry
+   * it. Callers gate badges on `message_count > 1`.
+   */
+  message_count?: number;
 }
 
 // --- Thought type constants ---
