@@ -118,6 +118,25 @@ export default async function ThoughtDetailPage({
         </div>
       </div>
 
+      {/* Sibling-thread context (openbrain li-7nqq2u, v084). Gmail list
+          surfaces collapse a thread to one representative card; on a
+          message's detail view we note the thread membership so the
+          operator understands why sibling messages don't appear as
+          separate rows. The single-thought reader (/thought/:id) carries
+          no message_count, so this is membership context, not a count. */}
+      {thought.metadata?.source === "gmail" &&
+        typeof thought.metadata?.gmail_thread_id === "string" && (
+          <div className="bg-bg-surface border border-border rounded-lg px-4 py-3 text-sm text-text-secondary flex items-start gap-2">
+            <span aria-hidden className="text-text-muted">🧵</span>
+            <span>
+              Part of a Gmail thread. The Inbox, Thoughts, and Search lists
+              collapse the thread to a single card — open the full
+              conversation with{" "}
+              <span className="text-text-primary">Open in Gmail</span> above.
+            </span>
+          </div>
+        )}
+
       {/* Content + Edit */}
       <ThoughtEditor thought={thought} editAction={editAction} />
 

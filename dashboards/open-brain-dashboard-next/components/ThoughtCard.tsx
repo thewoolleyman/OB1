@@ -25,6 +25,24 @@ export function TypeBadge({ type }: { type: string }) {
   );
 }
 
+// "N messages" badge for Gmail thread-collapsed list rows (openbrain
+// v084, SPECIFICATION/contracts.md #gmail-thread-collapse-on-list-surfaces).
+// The /inbox, /thoughts, and /search readers surface a representative
+// row per gmail_thread_id with a message_count; this badge tells the
+// operator the row stands in for a whole thread. Callers gate on
+// `message_count > 1` so single-message threads and non-Gmail rows
+// (message_count = 1) render no badge.
+export function MessageCountBadge({ count }: { count: number }) {
+  return (
+    <span
+      title={`This thread collapses ${count} messages`}
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border bg-bg-elevated text-text-muted border-border"
+    >
+      {count} messages
+    </span>
+  );
+}
+
 export function ThoughtCard({
   thought,
   showLink = true,

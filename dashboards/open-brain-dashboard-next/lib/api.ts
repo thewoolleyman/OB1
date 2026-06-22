@@ -265,6 +265,76 @@ export async function fetchTriageSummary(
   };
 }
 
+// ---------- inbox (Gmail-thread-collapsed untriaged surface) ----------
+//
+// GET /inbox and GET /inbox/summary per openbrain v084
+// (SPECIFICATION/contracts.md #gmail-thread-collapse-on-list-surfaces
+// plus the /triage→/inbox rename). Same universal-Inbox membership as
+// /triage, but read off the DB-side `thoughts_threaded` collapse view:
+// Gmail messages collapse to AT MOST ONE representative row per
+// gmail_thread_id BEFORE pagination/counts, and each row carries
+// `message_count` (the thread's global size). Non-Gmail rows pass
+// through 1:1 with message_count = 1.
+//
+// EXPAND phase (openbrain li-7nqq2u): served ALONGSIDE the legacy
+// fetchTriage* helpers, which the contract item li-pnfp6z repoints and
+// removes once every consumer (kanban lane, home TriageSummary, smoke)
+// has moved over and the backend /triage routes are dropped.
+export async function fetchInboxThoughts(
+  apiKey: string,
+  params?: {
+    source?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: string;
+    order?: string;
+  }
+): Promise<TriageListResponse> {
+  const sp = new URLSearchParams();
+  if (params?.source) sp.set("source", params.source);
+  if (params?.page) sp.set("page", String(params.page));
+  if (params?.pageSize) sp.set("pageSize", String(params.pageSize));
+  if (params?.sort) sp.set("sort", params.sort);
+  if (params?.order) sp.set("order", params.order);
+  const qs = sp.toString();
+  const data = await apiFetch<Record<string, unknown>>(
+    apiKey,
+    `/inbox${qs ? `?${qs}` : ""}`
+  );
+  // Lenient envelope parse (matches fetchTriageThoughts): /inbox returns
+  // {data, total, page, per_page}; tolerate the legacy `thoughts` key.
+  // Each item carries `message_count` (Thought.message_count).
+  const thoughts = (Array.isArray(data.data)
+    ? data.data
+    : Array.isArray(data.thoughts)
+      ? data.thoughts
+      : []) as Thought[];
+  return {
+    thoughts,
+    total: typeof data.total === "number" ? data.total : thoughts.length,
+    page: typeof data.page === "number" ? data.page : 1,
+    pageSize:
+      typeof data.per_page === "number"
+        ? data.per_page
+        : typeof data.pageSize === "number"
+          ? data.pageSize
+          : thoughts.length,
+  };
+}
+
+export async function fetchInboxSummary(
+  apiKey: string
+): Promise<import("./types").TriageSummaryResponse> {
+  const data = await apiFetch<Record<string, unknown>>(apiKey, "/inbox/summary");
+  return {
+    total: typeof data.total === "number" ? data.total : 0,
+    by_source:
+      data.by_source && typeof data.by_source === "object"
+        ? (data.by_source as Record<string, number>)
+        : {},
+  };
+}
+
 export async function fetchDuplicates(
   apiKey: string,
   params?: {

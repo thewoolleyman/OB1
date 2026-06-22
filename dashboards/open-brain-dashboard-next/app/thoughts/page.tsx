@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { fetchThoughts } from "@/lib/api";
 import { requireSessionOrRedirect, getSession } from "@/lib/auth";
-import { TypeBadge } from "@/components/ThoughtCard";
+import { TypeBadge, MessageCountBadge } from "@/components/ThoughtCard";
 import { SourceLink } from "@/components/SourceLink";
 import { ThoughtsFilter } from "@/components/ThoughtsFilter";
 import { FormattedDate } from "@/components/FormattedDate";
@@ -87,14 +87,20 @@ export default async function ThoughtsPage({
                 className="hover:bg-bg-hover transition-colors"
               >
                 <td className="px-4 py-3">
-                  <Link
-                    href={`/thoughts/${t.id}`}
-                    className="text-text-primary hover:text-violet transition-colors"
-                  >
-                    {t.content.length > 120
-                      ? t.content.slice(0, 120) + "..."
-                      : t.content}
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/thoughts/${t.id}`}
+                      className="text-text-primary hover:text-violet transition-colors"
+                    >
+                      {t.content.length > 120
+                        ? t.content.slice(0, 120) + "..."
+                        : t.content}
+                    </Link>
+                    {typeof t.message_count === "number" &&
+                      t.message_count > 1 && (
+                        <MessageCountBadge count={t.message_count} />
+                      )}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <TypeBadge type={t.type} />

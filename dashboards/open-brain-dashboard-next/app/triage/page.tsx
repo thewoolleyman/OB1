@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { fetchTriageThoughts, fetchTriageSummary } from "@/lib/api";
+import { fetchInboxThoughts, fetchInboxSummary } from "@/lib/api";
 import { requireSessionOrRedirect } from "@/lib/auth";
-import { TypeBadge } from "@/components/ThoughtCard";
+import { TypeBadge, MessageCountBadge } from "@/components/ThoughtCard";
 import { ThoughtActions } from "@/components/ThoughtActions";
 import { SourceLink } from "@/components/SourceLink";
 import { FormattedDate } from "@/components/FormattedDate";
@@ -10,13 +10,18 @@ import type { Thought } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-// Triage view per openbrain SPECIFICATION/spec.md § Dashboard
-// "Triage view": thoughts where metadata.gtd_triaged_at IS NULL AND
-// metadata.type ∈ {task, idea}, served by open-brain-rest
-// GET /triage. Per-source tabs (only sources with at least one
-// untriaged item, from GET /triage/summary), defaulting to a
-// unified All tab. The per-source tabs ARE the GTD multiple-inbox
-// surface — there is deliberately no Inbox column on the Kanban.
+// Inbox view per openbrain SPECIFICATION/spec.md § Dashboard: the
+// universal-Inbox membership set, served by open-brain-rest GET /inbox
+// + GET /inbox/summary (v084 /triage→/inbox rename). These read the
+// DB-side `thoughts_threaded` collapse view, so Gmail messages collapse
+// to one representative row per gmail_thread_id and every count is
+// THREADS not messages (contracts.md
+// #gmail-thread-collapse-on-list-surfaces). Each row carries
+// message_count; the card renders a "N messages" badge when > 1.
+// Per-source tabs (only sources with at least one item, from
+// /inbox/summary), defaulting to a unified All tab — the per-source
+// tabs ARE the GTD multiple-inbox surface; there is deliberately no
+// Inbox column on the Kanban.
 
 function contentPreview(t: Thought): string {
   return t.content.length > 280 ? t.content.slice(0, 280) + "..." : t.content;
@@ -35,8 +40,8 @@ export default async function TriagePage({
   let summary, list;
   try {
     [summary, list] = await Promise.all([
-      fetchTriageSummary(apiKey),
-      fetchTriageThoughts(apiKey, {
+      fetchInboxSummary(apiKey),
+      fetchInboxThoughts(apiKey, {
         source: source || undefined,
         page,
         pageSize: 25,
@@ -47,7 +52,7 @@ export default async function TriagePage({
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Inbox</h1>
         <p className="text-danger text-sm">
-          Failed to load triage data.{" "}
+          Failed to load inbox data.{" "}
           {err instanceof Error ? err.message : ""}
         </p>
       </div>
@@ -125,6 +130,10 @@ export default async function TriagePage({
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border bg-bg-elevated text-text-muted border-border">
                     {SOURCE_LABELS[t.source_type] ?? t.source_type}
                   </span>
+                  {typeof t.message_count === "number" &&
+                    t.message_count > 1 && (
+                      <MessageCountBadge count={t.message_count} />
+                    )}
                   <SourceLink metadata={t.metadata} />
                 </div>
                 <FormattedDate

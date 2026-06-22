@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { SearchBar } from "@/components/SearchBar";
-import { TypeBadge } from "@/components/ThoughtCard";
+import { TypeBadge, MessageCountBadge } from "@/components/ThoughtCard";
 import { SourceLink } from "@/components/SourceLink";
 import Link from "next/link";
 import type { Thought } from "@/lib/types";
@@ -104,6 +104,10 @@ export default function SearchPage() {
               >
                 <div className="flex items-center gap-3 mb-2">
                   <TypeBadge type={r.type} />
+                  {typeof r.message_count === "number" &&
+                    r.message_count > 1 && (
+                      <MessageCountBadge count={r.message_count} />
+                    )}
                   {r.similarity != null && (
                     <span className="text-xs text-violet font-mono">
                       {(r.similarity * 100).toFixed(1)}% match
