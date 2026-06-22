@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireSession, AuthError } from "@/lib/auth";
-import { fetchTriageSummary } from "@/lib/api";
+import { fetchInboxSummary } from "@/lib/api";
 
-// Session-gated proxy to open-brain-rest GET /triage/summary
-// (untriaged tasks + ideas: total and per-source counts) for the
-// TriageSummary home-page card. Mirrors app/api/kanban/route.ts.
+// Session-gated proxy to open-brain-rest GET /inbox/summary
+// (untriaged tasks + ideas, Gmail collapsed by thread: total and
+// per-source counts) for the TriageSummary home-page card. Mirrors
+// app/api/kanban/route.ts. Backend endpoint moved /triage/summary →
+// /inbox/summary in openbrain li-pnfp6z; this Next.js proxy route path
+// (/api/triage/summary) is internal and unchanged, so its caller
+// (components/TriageSummary.tsx) needs no edit.
 
 export async function GET() {
   let apiKey: string;
@@ -17,7 +21,7 @@ export async function GET() {
   }
 
   try {
-    const summary = await fetchTriageSummary(apiKey);
+    const summary = await fetchInboxSummary(apiKey);
     return NextResponse.json(summary);
   } catch (err) {
     return NextResponse.json(

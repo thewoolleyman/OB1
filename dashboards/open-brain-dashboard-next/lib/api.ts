@@ -179,10 +179,12 @@ export async function fetchKanbanThoughts(
     `/thoughts?${tasksSp.toString()}`
   );
 
-  // Untriaged task/idea Inbox set via GET /triage (membership owned
+  // Untriaged task/idea Inbox set via GET /inbox (membership owned
   // by the backend: gtd_triaged_at IS NULL AND type ∈ {task, idea}),
-  // sorted by the same activity_date recency the board uses.
-  const inbox = await fetchTriageThoughts(apiKey, {
+  // sorted by the same activity_date recency the board uses. Reads the
+  // Gmail-thread-collapse view (openbrain li-ksv3kg), so a multi-message
+  // Gmail thread feeds the Inbox lane as a single card, not one per message.
+  const inbox = await fetchInboxThoughts(apiKey, {
     sort: "activity_date",
     order: "desc",
     pageSize: 100,
@@ -194,75 +196,22 @@ export async function fetchKanbanThoughts(
   return [...byId.values()];
 }
 
-// ---------- triage (untriaged tasks + ideas) ----------
+// ---------- untriaged Inbox list-response shape ----------
 //
-// GET /triage and GET /triage/summary per openbrain
-// SPECIFICATION/contracts.md § open-brain-rest and spec.md
-// § Dashboard "Triage view": thoughts where
-// metadata.gtd_triaged_at IS NULL AND metadata.type ∈ {task, idea}.
-
+// Shared by fetchInboxThoughts below. The legacy fetchTriageThoughts /
+// fetchTriageSummary helpers (which hit the backend GET /triage and
+// GET /triage/summary) were RETIRED in openbrain li-pnfp6z (v084
+// /triage→/inbox rename): every consumer — the kanban Inbox lane, the
+// home TriageSummary card, and the Inbox view — now reads /inbox +
+// /inbox/summary via fetchInbox*, and the backend /triage routes are
+// removed. The interface name keeps the internal `Triage*` vocab the
+// contract leaves unchanged (gtd_triaged_at, TRIAGE_TYPES); only the
+// backend ENDPOINT moved.
 export interface TriageListResponse {
   thoughts: Thought[];
   total: number;
   page: number;
   pageSize: number;
-}
-
-export async function fetchTriageThoughts(
-  apiKey: string,
-  params?: {
-    source?: string;
-    page?: number;
-    pageSize?: number;
-    sort?: string;
-    order?: string;
-  }
-): Promise<TriageListResponse> {
-  const sp = new URLSearchParams();
-  if (params?.source) sp.set("source", params.source);
-  if (params?.page) sp.set("page", String(params.page));
-  if (params?.pageSize) sp.set("pageSize", String(params.pageSize));
-  // Shared query-control sort/order (open-brain-rest applies it on
-  // top of the untriaged membership gate). Used by the Workflow
-  // Inbox lane to match the board's activity_date recency ordering.
-  if (params?.sort) sp.set("sort", params.sort);
-  if (params?.order) sp.set("order", params.order);
-  const qs = sp.toString();
-  const data = await apiFetch<Record<string, unknown>>(
-    apiKey,
-    `/triage${qs ? `?${qs}` : ""}`
-  );
-  // Lenient envelope parse (fail-soft on shape drift): canonical key
-  // is `thoughts`; tolerate the legacy `data` list key.
-  const thoughts = (Array.isArray(data.thoughts)
-    ? data.thoughts
-    : Array.isArray(data.data)
-      ? data.data
-      : []) as Thought[];
-  return {
-    thoughts,
-    total: typeof data.total === "number" ? data.total : thoughts.length,
-    page: typeof data.page === "number" ? data.page : 1,
-    pageSize:
-      typeof data.pageSize === "number"
-        ? data.pageSize
-        : typeof data.per_page === "number"
-          ? data.per_page
-          : thoughts.length,
-  };
-}
-
-export async function fetchTriageSummary(
-  apiKey: string
-): Promise<import("./types").TriageSummaryResponse> {
-  const data = await apiFetch<Record<string, unknown>>(apiKey, "/triage/summary");
-  return {
-    total: typeof data.total === "number" ? data.total : 0,
-    by_source:
-      data.by_source && typeof data.by_source === "object"
-        ? (data.by_source as Record<string, number>)
-        : {},
-  };
 }
 
 // ---------- inbox (Gmail-thread-collapsed untriaged surface) ----------
@@ -276,10 +225,10 @@ export async function fetchTriageSummary(
 // `message_count` (the thread's global size). Non-Gmail rows pass
 // through 1:1 with message_count = 1.
 //
-// EXPAND phase (openbrain li-7nqq2u): served ALONGSIDE the legacy
-// fetchTriage* helpers, which the contract item li-pnfp6z repoints and
-// removes once every consumer (kanban lane, home TriageSummary, smoke)
-// has moved over and the backend /triage routes are dropped.
+// The sole untriaged-Inbox reader (openbrain li-pnfp6z, CONTRACT phase):
+// the legacy fetchTriage* helpers and the backend /triage routes are
+// removed; the kanban Inbox lane and the home TriageSummary card read
+// this and fetchInboxSummary.
 export async function fetchInboxThoughts(
   apiKey: string,
   params?: {
