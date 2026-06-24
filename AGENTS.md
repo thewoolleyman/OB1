@@ -9,6 +9,7 @@ When multiple AI agents or assistant chats work on this repo, do not put them in
 - Treat the main repo checkout as the canonical repo for pulling, inspection, and creating worktrees.
 - Create one Git worktree per active agent, task, or PR-sized workstream.
 - Give each worktree a descriptive folder name and a matching branch name.
+- **Place all worktrees under `~/.worktrees/OB1/<branch-name>` (absolute: `/home/ubuntu/.worktrees/OB1/<branch-name>`), never as peers of the repo clone in `/data/projects/`.** This keeps worktrees out of the projects directory and under a predictable per-repo root.
 - Start every agent task by naming the exact absolute worktree path it owns.
 - The assigned worktree path is the boundary. The chat is not the boundary.
 
@@ -18,7 +19,7 @@ Start each parallel-agent task with:
 
 ```text
 Repository worktree:
-/ABSOLUTE/PATH/TO/PROJECT-WORKTREE
+/home/ubuntu/.worktrees/OB1/SHORT-TASK-NAME
 
 Branch:
 codex/SHORT-TASK-NAME
@@ -33,13 +34,14 @@ DESCRIBE THE EXACT WORK.
 - Do not edit sibling worktrees unless explicitly asked.
 - Before staging or committing, run `git status --short` and stage only files that belong to the current task.
 - If `main` or another branch changed underneath the worktree, pause before merging or rebasing unless the task explicitly says to finish the PR end to end.
-- After a branch is merged and the worktree is clean, remove the finished worktree with `git worktree remove /ABSOLUTE/PATH/TO/PROJECT-WORKTREE`.
+- After a branch is merged and the worktree is clean, remove the finished worktree with `git worktree remove /home/ubuntu/.worktrees/OB1/<branch-name>`.
 
 ### Quick checks
 
 - If another chat suddenly changed branches, both chats were probably in the same working directory.
-- If `git worktree add` says a branch is already checked out, create a new branch name or remove the old clean worktree.
+- If `git worktree add` says a branch is already checked out, create a new branch name or remove the old clean worktree. Place the new worktree under `~/.worktrees/OB1/<branch-name>` as described above.
 - If cleanup fails, inspect `git status --short` and preserve uncommitted work.
+- This host's mise is configured to auto-trust configs under `~/.worktrees`, so `.mise.toml` in any worktree there is trusted automatically.
 
 ## Required Step: Update Linear
 
